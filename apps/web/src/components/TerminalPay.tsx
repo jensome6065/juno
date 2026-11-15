@@ -112,21 +112,28 @@ export function TerminalPay() {
             <TapStage phase={phase} />
 
             {phase === "approved" && result ? (
-              <div className="animate-rise space-y-2 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-5 text-left">
-                <p className="text-sm text-accent">Approved</p>
-                <p className="font-[family-name:var(--font-display)] text-2xl">
-                  {result.transaction.selected_card_name}
-                </p>
-                <p className="text-sm text-muted">{result.transaction.reason}</p>
-                <p className="text-sm text-accent">
-                  +{money(result.transaction.extra_value)} vs{" "}
-                  {result.transaction.default_card_name}
-                </p>
-                {result.wallet_updated ? (
-                  <p className="text-sm text-muted">
-                    Apple Wallet pass updated with this route.
+              <div className="animate-rise space-y-4 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-5 text-left">
+                <div className="space-y-2">
+                  <p className="text-sm text-accent">Approved</p>
+                  <p className="font-[family-name:var(--font-display)] text-2xl">
+                    {result.transaction.selected_card_name}
                   </p>
-                ) : null}
+                  <p className="text-sm text-muted">{result.transaction.reason}</p>
+                  <p className="text-sm text-accent">
+                    +{money(result.transaction.extra_value)} vs{" "}
+                    {result.transaction.default_card_name}
+                  </p>
+                  {result.wallet_updated ? (
+                    <p className="text-sm text-muted">
+                      Apple Wallet pass updated with this route.
+                    </p>
+                  ) : null}
+                </div>
+
+                <ScoreBreakdown
+                  scores={result.scores}
+                  winnerId={result.transaction.selected_card_id}
+                />
               </div>
             ) : null}
 
@@ -166,6 +173,56 @@ export function TerminalPay() {
           </div>
         </div>
       </main>
+    </div>
+  );
+}
+
+function ScoreBreakdown({
+  scores,
+  winnerId,
+}: {
+  scores: SimulateResponse["scores"];
+  winnerId: string;
+}) {
+  if (!scores.length) return null;
+
+  return (
+    <div className="border-t border-line/80 pt-4">
+      <p className="text-xs tracking-[0.2em] text-muted uppercase">
+        Router decision
+      </p>
+      <ul className="mt-3 space-y-3">
+        {scores.map((score, index) => {
+          const winner = score.card_id === winnerId;
+          return (
+            <li
+              key={score.card_id}
+              className={`flex items-start justify-between gap-3 text-sm ${
+                winner ? "text-foreground" : "text-muted"
+              }`}
+            >
+              <div className="min-w-0">
+                <p className={winner ? "font-medium" : ""}>
+                  <span className="mr-2 text-xs text-muted">#{index + 1}</span>
+                  {score.card_name}
+                  {winner ? (
+                    <span className="ml-2 text-xs text-accent">selected</span>
+                  ) : null}
+                </p>
+                <p className="mt-1 truncate text-xs text-muted">{score.reason}</p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className={winner ? "text-accent" : ""}>
+                  {money(score.value)}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  {Number(score.rate_used)}x
+                </p>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
