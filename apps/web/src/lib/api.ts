@@ -61,6 +61,7 @@ export type SimulateResponse = {
     reason: string;
   }>;
   wallet_updated?: boolean;
+  latency_ms?: number;
 };
 
 export type WalletStatus = {

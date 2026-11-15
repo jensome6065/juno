@@ -60,6 +60,7 @@ class SimulateResponse(BaseModel):
     transaction: TransactionOut
     scores: list[RouteScore]
     wallet_updated: bool = False
+    latency_ms: float = 0.0
 
 
 class WalletStatusOut(BaseModel):

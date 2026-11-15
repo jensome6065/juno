@@ -1,3 +1,5 @@
+import time
+
 from fastapi import APIRouter, HTTPException
 
 from app.engine.router import pick_best_card
@@ -34,6 +36,9 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         raise HTTPException(status_code=400, detail="no cards configured")
 
     amount = body.amount if body.amount is not None else merchant_typical_amount(merchant)
+
+    # Time the authorization-critical path only (score + persist), not WalletWallet I/O.
+    started = time.perf_counter()
     best, scores, default = pick_best_card(
         cards,
         amount,
@@ -66,6 +71,7 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         },
         card=chosen,
     )
+    latency_ms = round((time.perf_counter() - started) * 1000, 2)
 
     wallet_updated = False
     try:
@@ -78,4 +84,5 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         transaction=TransactionOut(**tx),
         scores=[RouteScore(**s) for s in scores],
         wallet_updated=wallet_updated,
+        latency_ms=latency_ms,
     )

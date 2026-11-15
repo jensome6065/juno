@@ -114,7 +114,14 @@ export function TerminalPay() {
             {phase === "approved" && result ? (
               <div className="animate-rise space-y-4 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-5 text-left">
                 <div className="space-y-2">
-                  <p className="text-sm text-accent">Approved</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm text-accent">Approved</p>
+                    {typeof result.latency_ms === "number" ? (
+                      <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-muted">
+                        routed in {formatLatency(result.latency_ms)}
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="font-[family-name:var(--font-display)] text-2xl">
                     {result.transaction.selected_card_name}
                   </p>
@@ -257,6 +264,12 @@ function TapStage({ phase }: { phase: Phase }) {
       <p className="text-sm text-muted">{label}</p>
     </div>
   );
+}
+
+function formatLatency(ms: number) {
+  if (ms < 1) return "<1ms";
+  if (ms < 10) return `${ms.toFixed(1)}ms`;
+  return `${Math.round(ms)}ms`;
 }
 
 function wait(ms: number) {
