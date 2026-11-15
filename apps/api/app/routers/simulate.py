@@ -52,6 +52,7 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
     return SimulateResponse(
         transaction=decision["transaction"],
         scores=decision["scores"],
+        intel=decision.get("intel"),
         wallet_updated=wallet_updated,
         latency_ms=decision["latency_ms"],
         signature_verified=decision.get("signature_verified", False),

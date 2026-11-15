@@ -49,6 +49,11 @@ def pick_best_card(
             "rank": row.get("rank"),
             "eligible": bool(row.get("eligible", True)),
             "constraint": row.get("constraint"),
+            "cap_split": bool(
+                int(row.get("bonus_cents") or 0) > 0
+                and int(row.get("default_cents") or 0) > 0
+            ),
+            "bonus_key": row.get("bonus_key"),
         }
         for row in result["ranking"]
     ]
@@ -61,7 +66,13 @@ def pick_best_card(
         "category": result["category"],
         "category_confidence": result.get("category_confidence"),
         "category_source": result.get("category_source"),
+        "override_id": result.get("override_id"),
+        "mcc_category": result.get("mcc_category"),
         "bonus_cents": int(result["ranking"][0].get("bonus_cents") or 0),
+        "cap_split": bool(
+            int(result["ranking"][0].get("bonus_cents") or 0) > 0
+            and int(result["ranking"][0].get("default_cents") or 0) > 0
+        ),
     }
     default = {
         "card_id": "baseline",

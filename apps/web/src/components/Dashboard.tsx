@@ -256,6 +256,20 @@ export function Dashboard() {
                       <div className="min-w-0">
                         <p className="font-medium">{tx.merchant_name}</p>
                         <p className="mt-1 text-sm text-muted">{tx.reason}</p>
+                        {(tx.category_source === "override" ||
+                          tx.cap_key) && (
+                          <p className="mt-1 text-xs text-accent">
+                            {tx.category_source === "override"
+                              ? `Override → ${tx.category}`
+                              : null}
+                            {tx.category_source === "override" && tx.cap_key
+                              ? " · "
+                              : null}
+                            {tx.cap_key
+                              ? `Cap “${tx.cap_key}” applied`
+                              : null}
+                          </p>
+                        )}
                         <SavingsCompare
                           compact
                           defaultCardName={tx.default_card_name}

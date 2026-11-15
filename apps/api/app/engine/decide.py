@@ -140,6 +140,7 @@ def decide(
         "category_confidence": float(intel["confidence"]),
         "category_source": intel["source"],
         "override_id": intel.get("override_id"),
+        "mcc_category": intel.get("mcc_category"),
         "constraints_applied": {
             "denylist": sorted(constraints.denylist),
             "max_apr": constraints.max_apr,

@@ -40,6 +40,8 @@ export type Transaction = {
   merchant_name: string;
   mcc: string;
   category: string;
+  category_source?: string | null;
+  category_confidence?: number | null;
   amount: number;
   selected_card_id: string;
   selected_card_name: string;
@@ -48,18 +50,39 @@ export type Transaction = {
   default_reward_value: number;
   extra_value: number;
   reason: string;
+  cap_key?: string | null;
+  cap_credited_cents?: number | null;
+  cap_period_id?: string | null;
+  cap_remaining_cents?: number | null;
   created_at: string;
+};
+
+export type RouteScore = {
+  card_id: string;
+  card_name: string;
+  value: number;
+  rate_used: number;
+  reason: string;
+  rank?: number | null;
+  eligible?: boolean;
+  constraint?: string | null;
+  cap_split?: boolean;
+  bonus_key?: string | null;
+};
+
+export type DecisionIntel = {
+  category: string;
+  category_source: string;
+  category_confidence?: number | null;
+  mcc_category?: string | null;
+  override_id?: string | null;
+  winner_cap_split?: boolean;
 };
 
 export type SimulateResponse = {
   transaction: Transaction;
-  scores: Array<{
-    card_id: string;
-    card_name: string;
-    value: number;
-    rate_used: number;
-    reason: string;
-  }>;
+  scores: RouteScore[];
+  intel?: DecisionIntel | null;
   wallet_updated?: boolean;
   latency_ms?: number;
   signature_verified?: boolean;

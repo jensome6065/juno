@@ -7,7 +7,7 @@ from typing import Any, Optional
 
 from app.engine.router import pick_best_card
 from app.events import publish
-from app.schemas import RouteScore, TransactionOut
+from app.schemas import DecisionIntel, RouteScore, TransactionOut
 from app.services.rules import get_card, load_cards
 from app.store import add_transaction, get_caps, get_transaction_by_authorization
 
@@ -49,6 +49,7 @@ def route_purchase(
             return {
                 "transaction": _transaction_out(existing),
                 "scores": [RouteScore(**s) for s in scores],
+                "intel": _intel_from_best(best, existing),
                 "latency_ms": 0.0,
                 "signature_verified": source == "stripe_webhook",
                 "authorization_id": authorization_id,
@@ -98,6 +99,7 @@ def route_purchase(
     decision = {
         "transaction": transaction,
         "scores": [RouteScore(**s) for s in scores],
+        "intel": _intel_from_best(best, tx),
         "latency_ms": latency_ms,
         "signature_verified": source == "stripe_webhook",
         "authorization_id": authorization_id,
@@ -133,4 +135,29 @@ def _score_only(
         category_hint or "other",
         caps=get_caps(cards),
         merchant_name=merchant_name,
+    )
+
+
+def _intel_from_best(
+    best: dict[str, Any],
+    tx: Optional[dict[str, Any]] = None,
+) -> DecisionIntel:
+    tx = tx or {}
+    return DecisionIntel(
+        category=str(best.get("category") or tx.get("category") or "other"),
+        category_source=str(
+            best.get("category_source") or tx.get("category_source") or "mcc"
+        ),
+        category_confidence=(
+            float(best["category_confidence"])
+            if best.get("category_confidence") is not None
+            else (
+                float(tx["category_confidence"])
+                if tx.get("category_confidence") is not None
+                else None
+            )
+        ),
+        mcc_category=best.get("mcc_category"),
+        override_id=best.get("override_id"),
+        winner_cap_split=bool(best.get("cap_split")),
     )

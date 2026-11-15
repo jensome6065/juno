@@ -158,6 +158,11 @@ export function TerminalPay() {
                   extraValue={result.transaction.extra_value}
                 />
 
+                <DecisionNotes
+                  intel={result.intel}
+                  transaction={result.transaction}
+                />
+
                 <ScoreBreakdown
                   scores={result.scores}
                   winnerId={result.transaction.selected_card_id}
@@ -213,6 +218,62 @@ export function TerminalPay() {
   );
 }
 
+function DecisionNotes({
+  intel,
+  transaction,
+}: {
+  intel: SimulateResponse["intel"];
+  transaction: SimulateResponse["transaction"];
+}) {
+  const source = intel?.category_source ?? transaction.category_source;
+  const category = intel?.category ?? transaction.category;
+  const mccCategory = intel?.mcc_category;
+  const notes: string[] = [];
+
+  if (source === "override" && mccCategory && mccCategory !== category) {
+    notes.push(
+      `Merchant override: MCC looked like ${mccCategory}, scored as ${category}` +
+        (intel?.override_id ? ` (${intel.override_id})` : ""),
+    );
+  } else if (source === "override") {
+    notes.push(
+      `Merchant override applied → ${category}` +
+        (intel?.override_id ? ` (${intel.override_id})` : ""),
+    );
+  } else if (source === "mcc") {
+    notes.push(`Category from MCC → ${category}`);
+  }
+
+  if (intel?.winner_cap_split) {
+    notes.push(
+      "Winner hit a bonus cap — part of the purchase earned the default rate",
+    );
+  } else if (transaction.cap_key && transaction.cap_remaining_cents != null) {
+    notes.push(
+      `Cap bucket “${transaction.cap_key}” · ${money(
+        transaction.cap_remaining_cents / 100,
+      )} remaining this period`,
+    );
+  }
+
+  if (!notes.length) return null;
+
+  return (
+    <div className="border-t border-line/80 pt-4">
+      <p className="text-xs tracking-[0.2em] text-muted uppercase">
+        Why this category / rate
+      </p>
+      <ul className="mt-3 space-y-2 text-sm text-muted">
+        {notes.map((note) => (
+          <li key={note} className="leading-snug">
+            {note}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function ScoreBreakdown({
   scores,
   winnerId,
@@ -230,30 +291,46 @@ function ScoreBreakdown({
       <ul className="mt-3 space-y-3">
         {scores.map((score, index) => {
           const winner = score.card_id === winnerId;
+          const blocked = score.eligible === false;
           return (
             <li
               key={score.card_id}
               className={`flex items-start justify-between gap-3 text-sm ${
-                winner ? "text-foreground" : "text-muted"
+                blocked
+                  ? "text-muted/70"
+                  : winner
+                    ? "text-foreground"
+                    : "text-muted"
               }`}
             >
               <div className="min-w-0">
-                <p className={winner ? "font-medium" : ""}>
+                <p className={winner && !blocked ? "font-medium" : ""}>
                   <span className="mr-2 text-xs text-muted">#{index + 1}</span>
                   {score.card_name}
-                  {winner ? (
+                  {winner && !blocked ? (
                     <span className="ml-2 text-xs text-accent">selected</span>
                   ) : null}
+                  {blocked ? (
+                    <span className="ml-2 text-xs text-warn">
+                      blocked
+                      {score.constraint ? `:${score.constraint}` : ""}
+                    </span>
+                  ) : null}
+                  {score.cap_split ? (
+                    <span className="ml-2 text-xs text-accent">cap split</span>
+                  ) : null}
                 </p>
-                <p className="mt-1 truncate text-xs text-muted">{score.reason}</p>
+                <p className="mt-1 text-xs text-muted">{score.reason}</p>
               </div>
               <div className="shrink-0 text-right">
-                <p className={winner ? "text-accent" : ""}>
-                  {money(score.value)}
+                <p className={winner && !blocked ? "text-accent" : ""}>
+                  {blocked ? "—" : money(score.value)}
                 </p>
-                <p className="mt-1 text-xs text-muted">
-                  {Number(score.rate_used)}x
-                </p>
+                {!blocked ? (
+                  <p className="mt-1 text-xs text-muted">
+                    {Number(score.rate_used)}x
+                  </p>
+                ) : null}
               </div>
             </li>
           );

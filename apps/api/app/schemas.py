@@ -27,6 +27,8 @@ class TransactionOut(BaseModel):
     merchant_name: str
     mcc: str
     category: str
+    category_source: Optional[str] = None
+    category_confidence: Optional[float] = None
     amount: float
     selected_card_id: str
     selected_card_name: str
@@ -35,6 +37,10 @@ class TransactionOut(BaseModel):
     default_reward_value: float
     extra_value: float
     reason: str
+    cap_key: Optional[str] = None
+    cap_credited_cents: Optional[int] = None
+    cap_period_id: Optional[str] = None
+    cap_remaining_cents: Optional[int] = None
     created_at: str
 
 
@@ -54,11 +60,25 @@ class RouteScore(BaseModel):
     rank: Optional[int] = None
     eligible: bool = True
     constraint: Optional[str] = None
+    cap_split: bool = False
+    bonus_key: Optional[str] = None
+
+
+class DecisionIntel(BaseModel):
+    """How category was resolved and whether caps shaped the winner."""
+
+    category: str
+    category_source: str
+    category_confidence: Optional[float] = None
+    mcc_category: Optional[str] = None
+    override_id: Optional[str] = None
+    winner_cap_split: bool = False
 
 
 class SimulateResponse(BaseModel):
     transaction: TransactionOut
     scores: list[RouteScore]
+    intel: Optional[DecisionIntel] = None
     wallet_updated: bool = False
     latency_ms: float = 0.0
     signature_verified: bool = False
