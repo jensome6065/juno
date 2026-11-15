@@ -47,6 +47,12 @@ export function Dashboard() {
           setLive("live");
           return;
         }
+        if (event.type === "demo.reset") {
+          setTxs([]);
+          api.cards().then(setCards).catch(() => {});
+          api.walletStatus().then(setWallet).catch(() => {});
+          return;
+        }
         if (event.type === "decision.created" && event.transaction) {
           setTxs((prev) => {
             if (prev.some((tx) => tx.id === event.transaction!.id)) return prev;
@@ -82,6 +88,28 @@ export function Dashboard() {
         }
       } catch (e) {
         setWalletError(e instanceof Error ? e.message : "Could not create pass");
+      }
+    });
+  }
+
+  function resetDemo() {
+    if (
+      !window.confirm(
+        "Clear all demo transactions and cap history? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      try {
+        await api.resetDemo();
+        setTxs([]);
+        const [c, w] = await Promise.all([api.cards(), api.walletStatus()]);
+        setCards(c);
+        setWallet(w);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Reset failed");
       }
     });
   }
@@ -235,12 +263,25 @@ export function Dashboard() {
           </div>
 
           <div>
-            <h2 className="font-[family-name:var(--font-display)] text-2xl">
-              Transaction history
-            </h2>
-            <p className="mt-2 text-sm text-muted">
-              Live from the terminal — default-card rewards vs what Juno earned.
-            </p>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="font-[family-name:var(--font-display)] text-2xl">
+                  Transaction history
+                </h2>
+                <p className="mt-2 text-sm text-muted">
+                  Live from the terminal — default-card rewards vs what Juno
+                  earned.
+                </p>
+              </div>
+              <button
+                type="button"
+                disabled={pending || txs.length === 0}
+                onClick={resetDemo}
+                className="rounded-full border border-line px-4 py-2 text-sm text-muted transition hover:border-warn hover:text-warn disabled:opacity-40"
+              >
+                Reset demo
+              </button>
+            </div>
             <ul className="mt-6 space-y-4">
               {txs.length === 0 ? (
                 <li className="text-sm text-muted">

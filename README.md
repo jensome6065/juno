@@ -51,7 +51,7 @@ With Postgres, the API, and the web app running (see Setup above), open [http://
 
 The dashboard lists the linked rewards cards behind Juno and any routed purchases. From there, open **Terminal** to simulate a merchant tap: pick a merchant (coffee, groceries, gas, etc.), then **Hold phone to reader**. You’ll get an approval with the winning card, why it won, a score breakdown against the other cards, and routing latency.
 
-Keep the dashboard open in another tab while you tap — history updates live over SSE when a decision lands. On the dashboard, the **Security** section shows whether the Stripe webhook secret is loaded and other controls; **Probe webhook rejects** sends unsigned and bad-signature requests to `/webhooks/stripe` so you can confirm they fail. Back on the terminal, **Replay same auth** reuses the authorization id — the second call is idempotent and should not create a duplicate route.
+Keep the dashboard open in another tab while you tap — history updates live over SSE when a decision lands. Use **Reset demo** on the dashboard to wipe transactions and cap history before the next run. On the dashboard, the **Security** section shows whether the Stripe webhook secret is loaded and other controls; **Probe webhook rejects** sends unsigned and bad-signature requests to `/webhooks/stripe` so you can confirm they fail. Back on the terminal, **Replay same auth** reuses the authorization id — the second call is idempotent and should not create a duplicate route.
 
 Different merchants exercise different rules. Try **Starbucks at Whole Foods** to see a merchant override (MCC looks like grocery, scored as dining). Groceries and gas usually pick different winners; large bonus spend can show a **cap split** in the score breakdown.
 

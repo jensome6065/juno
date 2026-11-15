@@ -115,7 +115,7 @@ export type WalletPass = {
 };
 
 export type DecisionEvent = {
-  type: "decision.created" | "connected" | string;
+  type: "decision.created" | "demo.reset" | "connected" | string;
   transaction?: Transaction;
   scores?: SimulateResponse["scores"];
   latency_ms?: number;
@@ -137,6 +137,10 @@ export const api = {
       method: "POST",
     }),
   securityStatus: () => request<SecurityStatus>("/security/status"),
+  resetDemo: () =>
+    request<{ ok: boolean; wallet_updated: boolean }>("/demo/reset", {
+      method: "POST",
+    }),
   eventsUrl: () => `${API_URL}/events`,
   async probeUnsignedWebhook(): Promise<{ status: number; detail: string }> {
     const res = await fetch(`${API_URL}/webhooks/stripe`, {
