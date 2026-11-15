@@ -116,13 +116,28 @@ def select_card(
     caps: Optional[dict] = None,
     today: Optional[date] = None,
     mcc_map: Optional[dict] = None,
+    merchant_name: str = "",
+    denylist: Optional[list] = None,
+    max_apr: Optional[float] = None,
+    carry_months: float = 0.0,
 ) -> dict:
-    """Route one wallet tap. `mcc` is what the authorization carries."""
-    category = category_for_mcc(mcc, mcc_map)
-    result = choose_card(cards, category, amount_cents, caps=caps, today=today)
-    result["mcc"] = str(mcc)
-    result["category"] = category
-    return result
+    """Route one wallet tap. Prefer `decide()` for new call sites."""
+    from app.engine.decide import Constraints, decide
+
+    return decide(
+        cards,
+        amount_cents,
+        mcc=str(mcc),
+        merchant_name=merchant_name,
+        constraints=Constraints.from_parts(
+            caps=caps,
+            denylist=denylist,
+            max_apr=max_apr,
+            carry_months=carry_months,
+            today=today,
+        ),
+        mcc_map=mcc_map,
+    )
 
 
 def choose_card(
@@ -131,49 +146,25 @@ def choose_card(
     amount_cents: int,
     caps: Optional[dict] = None,
     today: Optional[date] = None,
+    denylist: Optional[list] = None,
+    max_apr: Optional[float] = None,
+    carry_months: float = 0.0,
 ) -> dict:
-    """Pick the linked card with the highest cash back.
+    """Pick the linked card with the highest cash back for a known category."""
+    from app.engine.decide import Constraints, decide
 
-    Cards with `in_wallet: false` are not linked and are skipped.
-    `caps` is `{card_id: {cap_key: spent_cents}}` for the current period.
-    A rotating cap is one bucket: gas and groceries share it on Freedom Flex.
-    """
-    today = today or date.today()
-    caps = caps or {}
-
-    ranking = []
-    for card in cards:
-        if not card.get("in_wallet", True):
-            continue
-        spent = _spent_for(card, category, caps.get(card["id"]) or {})
-        ranking.append(
-            score_card(
-                card,
-                category,
-                amount_cents,
-                cap_spent_cents=spent,
-                carry_months=0,
-                today=today,
-            )
-        )
-    if not ranking:
-        raise ValueError("no in-wallet cards")
-
-    ranking.sort(key=lambda row: (-row["reward_cents"], row["card_id"]))
-    winner = ranking[0]
-    baseline = _baseline_cents(amount_cents)
-    reason = f"{winner['reason']} (vs {_money(baseline)} at 1%)"
-    return {
-        "card_id": winner["card_id"],
-        "name": winner["name"],
-        "value_cents": winner["reward_cents"],
-        "reward_cents": winner["reward_cents"],
-        "apr_cost_cents": 0.0,
-        "baseline_value_cents": baseline,
-        "savings_cents": winner["reward_cents"] - baseline,
-        "reason": reason,
-        "ranking": ranking,
-    }
+    return decide(
+        cards,
+        amount_cents,
+        category=category,
+        constraints=Constraints.from_parts(
+            caps=caps,
+            denylist=denylist,
+            max_apr=max_apr,
+            carry_months=carry_months,
+            today=today,
+        ),
+    )
 
 
 def _load(path: Path) -> list:

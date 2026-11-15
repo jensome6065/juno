@@ -5,6 +5,8 @@ apps/web/.env.local
 
 # python
 apps/api/.venv/
+apps/api/juno.db
+*.db
 **/__pycache__/
 *.py[cod]
 *.egg-info/

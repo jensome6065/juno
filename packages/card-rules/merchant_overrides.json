@@ -1,0 +1,32 @@
+[
+  {
+    "id": "coffee_counter_in_grocery",
+    "match": {
+      "name_contains": ["starbucks", "peet", "blue bottle", "dunkin", "coffee"],
+      "mcc_in": ["5411", "5412", "5300", "5311"]
+    },
+    "category": "dining",
+    "confidence": 0.92,
+    "note": "Coffee counter ringing under a grocery/warehouse MCC"
+  },
+  {
+    "id": "airline_ticket_agency",
+    "match": {
+      "name_contains": ["united", "delta", "jetblue", "american airlines", "southwest"],
+      "mcc_in": ["4722", "4511"]
+    },
+    "category": "travel",
+    "confidence": 0.97,
+    "note": "Airline purchase even when ticket-agency MCC is used"
+  },
+  {
+    "id": "pharmacy_inside_target",
+    "match": {
+      "name_contains": ["cvs", "pharmacy"],
+      "mcc_in": ["5311", "5310"]
+    },
+    "category": "drugstore",
+    "confidence": 0.88,
+    "note": "Pharmacy lane under a department-store MCC"
+  }
+]

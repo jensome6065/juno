@@ -41,6 +41,8 @@ class TransactionOut(BaseModel):
 class SimulateRequest(BaseModel):
     merchant_id: str
     amount: Optional[float] = Field(default=None, gt=0)
+    # Stripe (or demo) authorization id — UNIQUE in the data plane for idempotency.
+    authorization_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
 
 class RouteScore(BaseModel):
@@ -49,6 +51,9 @@ class RouteScore(BaseModel):
     value: float
     rate_used: float
     reason: str
+    rank: Optional[int] = None
+    eligible: bool = True
+    constraint: Optional[str] = None
 
 
 class SimulateResponse(BaseModel):

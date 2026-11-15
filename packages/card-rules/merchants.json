@@ -21,6 +21,14 @@
     "amount_cents": 8400
   },
   {
+    "id": "coffee_in_grocery",
+    "name": "Starbucks at Whole Foods",
+    "category": "dining",
+    "mcc": "5411",
+    "amount_cents": 650,
+    "note": "Coffee counter; MCC looks like grocery — override to dining"
+  },
+  {
     "id": "meat_market",
     "name": "Corner Butcher",
     "category": "groceries",

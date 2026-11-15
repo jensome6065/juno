@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.db import init_db
 from app.routers import cards, simulate, transactions, wallet
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -12,6 +13,11 @@ load_dotenv(ROOT / ".env")
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 app = FastAPI(title="Juno API", version="0.1.0")
+
+
+@app.on_event("startup")
+def _startup() -> None:
+    init_db()
 
 origins = [
     o.strip()

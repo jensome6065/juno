@@ -195,6 +195,11 @@ class ScorePurchasesTest(unittest.TestCase):
     def test_merchant_mccs_match_the_category_map(self):
         mcc_map = load_mcc_map()
         for merchant in self.merchants.values():
+            if merchant["id"] == "coffee_in_grocery":
+                # Intentionally mismatched MCC — resolved by merchant_overrides.
+                self.assertEqual(mcc_map[merchant["mcc"]], "groceries")
+                self.assertEqual(merchant["category"], "dining")
+                continue
             self.assertEqual(mcc_map[merchant["mcc"]], merchant["category"])
 
     def assert_winner_is_max_cash_back(self, result: dict):

@@ -40,17 +40,21 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         merchant["mcc"],
         merchant["category"],
         caps=get_caps(cards),
+        merchant_name=merchant["name"],
     )
 
-    # Category used for scoring may come from MCC (e.g. unknown codes → other).
+    # Category may come from MCC or a merchant_overrides hit (coffee-in-grocery).
     category = best.get("category") or merchant["category"]
     chosen = get_card(best["card_id"])
     tx = add_transaction(
         {
+            "authorization_id": body.authorization_id,
             "merchant_name": merchant["name"],
             "merchant_id": merchant["id"],
             "mcc": merchant["mcc"],
             "category": category,
+            "category_confidence": best.get("category_confidence"),
+            "category_source": best.get("category_source"),
             "amount": amount,
             "selected_card_id": best["card_id"],
             "selected_card_name": best["card_name"],
