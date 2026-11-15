@@ -235,6 +235,38 @@ export function Dashboard() {
           <Stat label="Linked cards" value={String(cards.length)} />
         </section>
 
+        <section className="animate-rise border-t border-line pt-10 [animation-delay:160ms]">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl">
+            How Juno decides
+          </h2>
+          <p className="mt-2 max-w-2xl text-sm text-muted">
+            At authorization time, one virtual card becomes the best linked
+            rewards card for that purchase — then the Wallet pass reflects it.
+          </p>
+          <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <DecideStep
+              n="01"
+              title="Resolve"
+              body="Map MCC + merchant name. Overrides catch coffee ringing as grocery."
+            />
+            <DecideStep
+              n="02"
+              title="Score"
+              body="Rank every linked card with rates, caps, and APR constraints."
+            />
+            <DecideStep
+              n="03"
+              title="Route"
+              body="Pick the winner once per authorization id — replays stay idempotent."
+            />
+            <DecideStep
+              n="04"
+              title="Update"
+              body="Stream the decision to this dashboard and refresh the Wallet pass."
+            />
+          </ol>
+        </section>
+
         <section className="animate-rise grid gap-12 [animation-delay:180ms] md:grid-cols-2">
           <div>
             <h2 className="font-[family-name:var(--font-display)] text-2xl">
@@ -364,6 +396,26 @@ function Stat({ label, value }: { label: string; value: string }) {
         {value}
       </p>
     </div>
+  );
+}
+
+function DecideStep({
+  n,
+  title,
+  body,
+}: {
+  n: string;
+  title: string;
+  body: string;
+}) {
+  return (
+    <li className="border-t border-line pt-4">
+      <p className="text-xs tracking-[0.2em] text-accent uppercase">{n}</p>
+      <p className="mt-3 font-[family-name:var(--font-display)] text-xl">
+        {title}
+      </p>
+      <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
+    </li>
   );
 }
 
