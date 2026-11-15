@@ -1,0 +1,14 @@
+[
+  {
+    "id": "example-card",
+    "name": "Example Cashback Card",
+    "base_rate": 0.01,
+    "categories": {
+      "dining": 0.03
+    },
+    "mcc_map": {
+      "5812": "dining",
+      "5814": "dining"
+    }
+  }
+]
