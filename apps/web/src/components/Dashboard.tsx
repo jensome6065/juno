@@ -10,6 +10,7 @@ import {
   type WalletStatus,
 } from "@/lib/api";
 import { money } from "@/lib/format";
+import { SavingsCompare } from "@/components/SavingsCompare";
 import { SecurityPanel } from "@/components/SecurityPanel";
 import { SiteNav } from "@/components/SiteNav";
 
@@ -172,11 +173,19 @@ export function Dashboard() {
                 <p className="mt-1 font-[family-name:var(--font-display)] text-2xl">
                   {last?.selected_card_name ?? "Waiting for a tap"}
                 </p>
-                <p className="mt-2 text-sm text-accent">
-                  {last
-                    ? `+${money(last.extra_value)} vs ${last.default_card_name}`
-                    : "Extra rewards show up after each tap"}
-                </p>
+                {last ? (
+                  <p className="mt-2 text-sm text-muted">
+                    {money(last.default_reward_value)} on{" "}
+                    {last.default_card_name} →{" "}
+                    <span className="text-accent">
+                      {money(last.reward_value)} · +{money(last.extra_value)}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="mt-2 text-sm text-accent">
+                    Extra rewards show up after each tap
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -230,8 +239,7 @@ export function Dashboard() {
               Transaction history
             </h2>
             <p className="mt-2 text-sm text-muted">
-              Live from the terminal — which card won, why, and how much more
-              you earned.
+              Live from the terminal — default-card rewards vs what Juno earned.
             </p>
             <ul className="mt-6 space-y-4">
               {txs.length === 0 ? (
@@ -245,13 +253,19 @@ export function Dashboard() {
                     className="border-b border-line pb-4 last:border-0"
                   >
                     <div className="flex items-baseline justify-between gap-4">
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium">{tx.merchant_name}</p>
-                        <p className="mt-1 text-sm text-muted">
-                          {tx.selected_card_name} · {tx.reason}
-                        </p>
+                        <p className="mt-1 text-sm text-muted">{tx.reason}</p>
+                        <SavingsCompare
+                          compact
+                          defaultCardName={tx.default_card_name}
+                          selectedCardName={tx.selected_card_name}
+                          defaultRewardValue={tx.default_reward_value}
+                          rewardValue={tx.reward_value}
+                          extraValue={tx.extra_value}
+                        />
                       </div>
-                      <div className="text-right">
+                      <div className="shrink-0 text-right">
                         <p>{money(tx.amount)}</p>
                         <p className="mt-1 text-sm text-accent">
                           +{money(tx.extra_value)}

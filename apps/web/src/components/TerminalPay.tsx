@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
+import { SavingsCompare } from "@/components/SavingsCompare";
 import { api, type Merchant, type SimulateResponse } from "@/lib/api";
 import { money } from "@/lib/format";
 
@@ -142,16 +143,20 @@ export function TerminalPay() {
                     {result.transaction.selected_card_name}
                   </p>
                   <p className="text-sm text-muted">{result.transaction.reason}</p>
-                  <p className="text-sm text-accent">
-                    +{money(result.transaction.extra_value)} vs{" "}
-                    {result.transaction.default_card_name}
-                  </p>
                   {result.wallet_updated ? (
                     <p className="text-sm text-muted">
                       Apple Wallet pass updated with this route.
                     </p>
                   ) : null}
                 </div>
+
+                <SavingsCompare
+                  defaultCardName={result.transaction.default_card_name}
+                  selectedCardName={result.transaction.selected_card_name}
+                  defaultRewardValue={result.transaction.default_reward_value}
+                  rewardValue={result.transaction.reward_value}
+                  extraValue={result.transaction.extra_value}
+                />
 
                 <ScoreBreakdown
                   scores={result.scores}
