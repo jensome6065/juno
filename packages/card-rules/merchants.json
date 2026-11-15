@@ -1,0 +1,23 @@
+[
+  {
+    "id": "coffee",
+    "name": "Blue Bottle Coffee",
+    "category": "dining",
+    "mcc": "5814",
+    "amount_cents": 600
+  },
+  {
+    "id": "grocery",
+    "name": "Whole Foods",
+    "category": "groceries",
+    "mcc": "5411",
+    "amount_cents": 8400
+  },
+  {
+    "id": "gas",
+    "name": "Shell",
+    "category": "gas",
+    "mcc": "5542",
+    "amount_cents": 4500
+  }
+]

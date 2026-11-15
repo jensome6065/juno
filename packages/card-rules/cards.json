@@ -1,14 +1,97 @@
 [
   {
-    "id": "example-card",
-    "name": "Example Cashback Card",
-    "base_rate": 0.01,
-    "categories": {
-      "dining": 0.03
+    "id": "amex_gold",
+    "name": "Amex Gold",
+    "issuer": "American Express",
+    "last4": "1004",
+    "color": "#C9A646",
+    "point_value_cents": 1.0,
+    "apr": 0.2099,
+    "apr_promo_end": null,
+    "rates": {
+      "dining": 4,
+      "groceries": 4,
+      "travel": 3,
+      "default": 1
     },
-    "mcc_map": {
-      "5812": "dining",
-      "5814": "dining"
+    "caps": {
+      "groceries": 2500000
+    }
+  },
+  {
+    "id": "freedom_flex",
+    "name": "Chase Freedom Flex",
+    "issuer": "Chase",
+    "last4": "2211",
+    "color": "#1A4C8B",
+    "point_value_cents": 1.0,
+    "apr": 0.2024,
+    "apr_promo_end": null,
+    "rates": {
+      "rotating": 5,
+      "dining": 3,
+      "drugstore": 3,
+      "default": 1
+    },
+    "rotating_categories": ["gas", "groceries"],
+    "caps": {
+      "rotating": 150000
+    }
+  },
+  {
+    "id": "double_cash",
+    "name": "Citi Double Cash",
+    "issuer": "Citi",
+    "last4": "3390",
+    "color": "#5B6770",
+    "point_value_cents": 1.0,
+    "apr": 0.1999,
+    "apr_promo_end": null,
+    "rates": {
+      "default": 2
+    }
+  },
+  {
+    "id": "sapphire_pref",
+    "name": "Chase Sapphire Preferred",
+    "issuer": "Chase",
+    "last4": "7781",
+    "color": "#0B2545",
+    "point_value_cents": 1.25,
+    "apr": 0.2149,
+    "apr_promo_end": null,
+    "rates": {
+      "travel": 2,
+      "dining": 3,
+      "default": 1
+    }
+  },
+  {
+    "id": "freedom_unlimited",
+    "name": "Chase Freedom Unlimited",
+    "issuer": "Chase",
+    "last4": "4418",
+    "color": "#0E4D92",
+    "point_value_cents": 1.0,
+    "apr": 0.2024,
+    "apr_promo_end": null,
+    "rates": {
+      "dining": 3,
+      "drugstore": 3,
+      "default": 1.5
+    }
+  },
+  {
+    "id": "reflect",
+    "name": "Wells Fargo Reflect",
+    "issuer": "Wells Fargo",
+    "last4": "5150",
+    "color": "#B31B1B",
+    "point_value_cents": 1.0,
+    "apr": 0.1824,
+    "apr_promo_end": "2027-09-30",
+    "rates": {
+      "default": 0
     }
   }
 ]
