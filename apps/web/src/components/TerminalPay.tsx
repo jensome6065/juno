@@ -9,6 +9,7 @@ import {
 } from "@/components/StartupHints";
 import { api, type Merchant, type SimulateResponse } from "@/lib/api";
 import { money } from "@/lib/format";
+import { playNfcTapSound, unlockNfcAudio } from "@/lib/nfcSound";
 
 type Phase = "idle" | "waiting" | "reading" | "approved" | "error";
 
@@ -45,6 +46,12 @@ export function TerminalPay() {
     const nextAuthId =
       replay && authId ? authId : `demo_auth_${Date.now().toString(36)}`;
 
+    // Unlock audio on the user gesture so the delayed NFC beep can play.
+    void unlockNfcAudio();
+    const nfcTimer = window.setTimeout(() => {
+      void playNfcTapSound();
+    }, 1500);
+
     startTransition(async () => {
       try {
         await wait(700);
@@ -55,6 +62,7 @@ export function TerminalPay() {
         setResult(res);
         setPhase("approved");
       } catch (e) {
+        window.clearTimeout(nfcTimer);
         setError(e instanceof Error ? e.message : "Payment failed");
         setPhase("error");
       }
