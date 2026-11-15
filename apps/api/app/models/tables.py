@@ -85,9 +85,10 @@ class PassStateRow(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     serial_number: Mapped[Optional[str]] = mapped_column(String(128))
-    share_url: Mapped[Optional[str]] = mapped_column(String(512))
-    google_save_url: Mapped[Optional[str]] = mapped_column(String(512))
-    apple_pass_path: Mapped[Optional[str]] = mapped_column(String(512))
+    # Google Save links embed a large JWT — varchar(512) truncates them.
+    share_url: Mapped[Optional[str]] = mapped_column(Text)
+    google_save_url: Mapped[Optional[str]] = mapped_column(Text)
+    apple_pass_path: Mapped[Optional[str]] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )

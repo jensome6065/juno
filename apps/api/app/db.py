@@ -9,7 +9,7 @@ from __future__ import annotations
 import os
 from functools import lru_cache
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -30,7 +30,25 @@ def get_engine() -> Engine:
             kwargs["poolclass"] = StaticPool
     engine = create_engine(url, **kwargs)
     Base.metadata.create_all(engine)
+    _widen_pass_url_columns(engine)
     return engine
+
+
+def _widen_pass_url_columns(engine: Engine) -> None:
+    """Google Save URLs exceed varchar(512); widen existing Postgres columns."""
+    if not str(engine.url).startswith("postgresql"):
+        return
+    statements = (
+        "ALTER TABLE pass_state ALTER COLUMN share_url TYPE TEXT",
+        "ALTER TABLE pass_state ALTER COLUMN google_save_url TYPE TEXT",
+        "ALTER TABLE pass_state ALTER COLUMN apple_pass_path TYPE TEXT",
+    )
+    with engine.begin() as conn:
+        for statement in statements:
+            try:
+                conn.execute(text(statement))
+            except Exception:  # noqa: BLE001 — table may not exist yet / already Text
+                pass
 
 
 def reset_engine() -> None:

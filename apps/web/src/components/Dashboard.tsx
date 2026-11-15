@@ -13,6 +13,7 @@ import { money } from "@/lib/format";
 import { SavingsCompare } from "@/components/SavingsCompare";
 import { SecurityPanel } from "@/components/SecurityPanel";
 import { SiteNav } from "@/components/SiteNav";
+import { WalletStatus } from "@/components/WalletStatus";
 
 export function Dashboard() {
   const [cards, setCards] = useState<Card[]>([]);
@@ -149,7 +150,7 @@ export function Dashboard() {
                   rel="noopener noreferrer"
                   className="animate-pulse-ring rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10"
                 >
-                  Open Apple Wallet pass
+                  Open Wallet pass
                 </a>
               ) : (
                 <button
@@ -162,22 +163,12 @@ export function Dashboard() {
                 </button>
               )}
             </div>
-            {wallet && !wallet.configured ? (
-              <p className="text-sm text-warn">
-                Set <code className="text-foreground">WALLETWALLET_API_KEY</code>{" "}
-                in <code className="text-foreground">.env</code> from{" "}
-                <a
-                  className="underline"
-                  href="https://www.walletwallet.dev"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  walletwallet.dev
-                </a>
-                , then restart the API.
-              </p>
-            ) : null}
-            {walletError ? <p className="text-sm text-warn">{walletError}</p> : null}
+            <WalletStatus
+              wallet={wallet}
+              pending={pending}
+              error={walletError}
+              onAdd={addToWallet}
+            />
             {error ? (
               <p className="text-sm text-warn">
                 API error — is uvicorn running on :8000? {error}
@@ -192,8 +183,22 @@ export function Dashboard() {
                 <span className="font-[family-name:var(--font-display)] text-2xl tracking-wide">
                   JUNO
                 </span>
-                <span className="rounded-full border border-line px-3 py-1 text-xs text-muted">
-                  {wallet?.serial_number ? "in wallet" : "virtual card"}
+                <span
+                  className={`rounded-full border px-3 py-1 text-xs ${
+                    wallet?.serial_number
+                      ? "border-accent/40 text-accent"
+                      : wallet?.configured
+                        ? "border-line text-muted"
+                        : "border-warn/40 text-warn"
+                  }`}
+                >
+                  {!wallet
+                    ? "…"
+                    : !wallet.configured
+                      ? "wallet off"
+                      : wallet.serial_number
+                        ? "pass live"
+                        : "no pass yet"}
                 </span>
               </div>
               <div>
