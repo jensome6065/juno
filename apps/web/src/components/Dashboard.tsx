@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import {
   api,
+  type CapStatus,
   type Card,
   type DecisionEvent,
   type Transaction,
   type WalletStatus as WalletStatusData,
 } from "@/lib/api";
 import { money } from "@/lib/format";
+import { CapMeters } from "@/components/CapMeters";
 import { JunoSmartCard } from "@/components/JunoSmartCard";
 import { SavingsCompare } from "@/components/SavingsCompare";
 import { SecurityPanel } from "@/components/SecurityPanel";
@@ -23,6 +25,7 @@ import { WalletStatus } from "@/components/WalletStatus";
 export function Dashboard() {
   const [cards, setCards] = useState<Card[]>([]);
   const [txs, setTxs] = useState<Transaction[]>([]);
+  const [caps, setCaps] = useState<CapStatus | null>(null);
   const [wallet, setWallet] = useState<WalletStatusData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [walletError, setWalletError] = useState<string | null>(null);
@@ -31,12 +34,22 @@ export function Dashboard() {
   );
   const [pending, startTransition] = useTransition();
 
+  function refreshCaps() {
+    api.caps().then(setCaps).catch(() => {});
+  }
+
   useEffect(() => {
-    Promise.all([api.cards(), api.transactions(), api.walletStatus()])
-      .then(([c, t, w]) => {
+    Promise.all([
+      api.cards(),
+      api.transactions(),
+      api.walletStatus(),
+      api.caps(),
+    ])
+      .then(([c, t, w, capStatus]) => {
         setCards(c);
         setTxs(t);
         setWallet(w);
+        setCaps(capStatus);
       })
       .catch((e: Error) => setError(e.message));
   }, []);
@@ -57,6 +70,7 @@ export function Dashboard() {
           setTxs([]);
           api.cards().then(setCards).catch(() => {});
           api.walletStatus().then(setWallet).catch(() => {});
+          refreshCaps();
           return;
         }
         if (event.type === "decision.created" && event.transaction) {
@@ -65,6 +79,7 @@ export function Dashboard() {
             return [event.transaction!, ...prev];
           });
           api.cards().then(setCards).catch(() => {});
+          refreshCaps();
         }
       } catch {
         // ignore malformed events
@@ -110,14 +125,16 @@ export function Dashboard() {
       try {
         // Wipe + seed distinct merchants so the feed isn’t 6× Blue Bottle.
         await api.runDemoScript(true);
-        const [c, w, txs] = await Promise.all([
+        const [c, w, seeded, capStatus] = await Promise.all([
           api.cards(),
           api.walletStatus(),
           api.transactions(),
+          api.caps(),
         ]);
         setCards(c);
         setWallet(w);
-        setTxs(txs);
+        setTxs(seeded);
+        setCaps(capStatus);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Reset failed");
       }
@@ -157,7 +174,7 @@ export function Dashboard() {
                   href={wallet.share_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="animate-pulse-ring rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10"
+                  className="rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10"
                 >
                   Open Wallet pass
                 </a>
@@ -166,7 +183,7 @@ export function Dashboard() {
                   type="button"
                   disabled={pending || wallet?.configured === false}
                   onClick={addToWallet}
-                  className="animate-pulse-ring rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10 disabled:opacity-50"
+                  className="rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10 disabled:opacity-50"
                 >
                   {pending ? "Creating pass…" : "Add to Apple Wallet"}
                 </button>
@@ -194,6 +211,10 @@ export function Dashboard() {
           <Stat label="Routed spend" value={money(spendTotal)} />
           <Stat label="Linked cards" value={String(cards.length)} />
         </section>
+
+        <div className="animate-rise [animation-delay:150ms]">
+          <CapMeters caps={caps} />
+        </div>
 
         <section className="animate-rise border-t border-line pt-10 [animation-delay:160ms]">
           <h2 className="font-[family-name:var(--font-display)] text-2xl">
