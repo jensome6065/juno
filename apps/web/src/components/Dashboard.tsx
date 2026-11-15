@@ -298,8 +298,7 @@ export function Dashboard() {
                   Transaction history
                 </h2>
                 <p className="mt-2 text-sm text-muted">
-                  Live from the terminal — default-card rewards vs what Juno
-                  earned.
+                  Live from the terminal — routed rewards vs a flat 1% baseline.
                 </p>
               </div>
               <button

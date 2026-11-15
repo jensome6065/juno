@@ -18,10 +18,16 @@ export function SavingsCompare({
   extraValue,
   compact = false,
 }: Props) {
+  const baselineLabel =
+    defaultCardName.toLowerCase().includes("baseline") ||
+    defaultCardName.includes("1%")
+      ? defaultCardName
+      : "1% baseline";
+
   if (compact) {
     return (
       <p className="mt-1 text-sm text-muted">
-        {money(defaultRewardValue)} on {defaultCardName} →{" "}
+        {money(defaultRewardValue)} at {baselineLabel} →{" "}
         <span className="text-foreground">{money(rewardValue)}</span> on{" "}
         {selectedCardName}
         {extraValue > 0 ? (
@@ -34,12 +40,12 @@ export function SavingsCompare({
   return (
     <div className="border-t border-line/80 pt-4">
       <p className="text-xs tracking-[0.2em] text-muted uppercase">
-        Without Juno vs with Juno
+        Vs 1% baseline
       </p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
-          <p className="text-xs text-muted">Default card</p>
-          <p className="mt-1 text-sm">{defaultCardName}</p>
+          <p className="text-xs text-muted">Without Juno</p>
+          <p className="mt-1 text-sm">{baselineLabel}</p>
           <p className="mt-1 text-muted">{money(defaultRewardValue)} rewards</p>
         </div>
         <div>
@@ -50,10 +56,10 @@ export function SavingsCompare({
       </div>
       <p className="mt-3 text-sm text-accent">
         {extraValue > 0
-          ? `You earned ${money(extraValue)} more on this purchase`
+          ? `You earned ${money(extraValue)} more than a flat 1% card`
           : extraValue < 0
-            ? `Routed ${money(Math.abs(extraValue))} less than default (rule/cap)`
-            : "Same rewards as your default card"}
+            ? `Routed ${money(Math.abs(extraValue))} less than 1% (rule/cap)`
+            : "Same rewards as a flat 1% card"}
       </p>
     </div>
   );

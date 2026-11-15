@@ -39,7 +39,7 @@ def build_pass_body() -> dict[str, Any]:
         routed = last["selected_card_name"]
         merchant = last["merchant_name"]
         extra = _money(float(last["extra_value"]))
-        notification = f"Routed to {routed} · +{extra} vs baseline"
+        notification = f"Routed to {routed} · +{extra} vs 1%"
         primary_change = "Juno routed this tap to %@"
     else:
         routed = "Ready to tap"
