@@ -32,6 +32,7 @@ def route_purchase(
     category_hint: Optional[str] = None,
     authorization_id: Optional[str] = None,
     source: str = "simulate",
+    carry_months: float = 0.0,
 ) -> dict[str, Any]:
     """Score linked cards, persist once, publish SSE. Idempotent on authorization_id."""
     if amount <= 0:
@@ -45,6 +46,7 @@ def route_purchase(
                 mcc=mcc,
                 merchant_name=merchant_name,
                 category_hint=category_hint,
+                carry_months=carry_months,
             )
             return {
                 "transaction": _transaction_out(existing),
@@ -68,6 +70,7 @@ def route_purchase(
         category_hint or "other",
         caps=get_caps(cards),
         merchant_name=merchant_name,
+        carry_months=carry_months,
     )
     category = best.get("category") or category_hint or "other"
     chosen = get_card(best["card_id"])
@@ -126,6 +129,7 @@ def _score_only(
     mcc: str,
     merchant_name: str,
     category_hint: Optional[str],
+    carry_months: float = 0.0,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
     cards = [c for c in load_cards() if c.get("in_wallet", True)]
     return pick_best_card(
@@ -135,6 +139,7 @@ def _score_only(
         category_hint or "other",
         caps=get_caps(cards),
         merchant_name=merchant_name,
+        carry_months=carry_months,
     )
 
 

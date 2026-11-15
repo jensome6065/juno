@@ -174,20 +174,34 @@ export const api = {
   cards: () => request<Card[]>("/cards"),
   merchants: () => request<Merchant[]>("/merchants"),
   transactions: () => request<Transaction[]>("/transactions"),
-  simulate: (merchant_id: string, amount?: number, authorization_id?: string) =>
+  simulate: (
+    merchant_id: string,
+    amount?: number,
+    authorization_id?: string,
+    carry_months?: number,
+  ) =>
     request<SimulateResponse>("/simulate", {
       method: "POST",
-      body: JSON.stringify({ merchant_id, amount, authorization_id }),
+      body: JSON.stringify({
+        merchant_id,
+        amount,
+        authorization_id,
+        carry_months: carry_months ?? 0,
+      }),
     }),
   simulateFreeText: (body: {
     merchant_name: string;
     mcc: string;
     amount: number;
     authorization_id?: string;
+    carry_months?: number;
   }) =>
     request<SimulateResponse>("/simulate", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify({
+        ...body,
+        carry_months: body.carry_months ?? 0,
+      }),
     }),
   infer: (merchant_name: string, mcc: string) =>
     request<InferResponse>("/infer", {

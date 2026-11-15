@@ -48,7 +48,9 @@ export function TerminalPay() {
   const [result, setResult] = useState<SimulateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [authId, setAuthId] = useState<string | null>(null);
+  const [financeMode, setFinanceMode] = useState(false);
   const [pending, startTransition] = useTransition();
+  const carryMonths = financeMode ? 12 : 0;
 
   useEffect(() => {
     api
@@ -139,12 +141,18 @@ export function TerminalPay() {
         await wait(900);
         const res =
           mode === "catalog" && merchant
-            ? await api.simulate(merchant.id, amountValue, nextAuthId)
+            ? await api.simulate(
+                merchant.id,
+                amountValue,
+                nextAuthId,
+                carryMonths,
+              )
             : await api.simulateFreeText({
                 merchant_name: customName.trim(),
                 mcc: customMcc.trim(),
                 amount: amountValue,
                 authorization_id: nextAuthId,
+                carry_months: carryMonths,
               });
         setAuthId(res.authorization_id ?? nextAuthId);
         setResult(res);
@@ -335,6 +343,22 @@ export function TerminalPay() {
               {!amountOk ? (
                 <p className="mt-2 text-sm text-warn">Enter an amount over $0</p>
               ) : null}
+
+              <label className="mt-5 flex cursor-pointer items-center justify-center gap-3 text-sm text-muted">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-[var(--accent)]"
+                  checked={financeMode}
+                  disabled={busy}
+                  onChange={(e) => {
+                    setFinanceMode(e.target.checked);
+                    resetOutcome();
+                  }}
+                />
+                <span>
+                  Finance mode · weigh Reflect 0% APR over 12 months
+                </span>
+              </label>
             </div>
 
             <TapStage phase={phase} />

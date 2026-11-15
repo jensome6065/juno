@@ -79,6 +79,7 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
             category_hint=None,  # always infer
             authorization_id=body.authorization_id,
             source="simulate",
+            carry_months=float(body.carry_months or 0.0),
         )
     except DecisionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
