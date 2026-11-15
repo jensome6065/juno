@@ -18,6 +18,24 @@ import { playNfcTapSound, unlockNfcAudio } from "@/lib/nfcSound";
 
 type Phase = "idle" | "waiting" | "reading" | "approved" | "error";
 
+/** Pitch-friendly shortcuts — teach override / rotating / cap burn without the full select. */
+const PITCH_CHIPS: {
+  id: string;
+  tag: string;
+  hint: string;
+}[] = [
+  { id: "starbucks", tag: "Dining", hint: "Amex Gold 4x" },
+  { id: "shell", tag: "Gas / rotating", hint: "Freedom Flex 5x" },
+  { id: "whole_foods", tag: "Cap burn", hint: "Gold after Flex full" },
+  {
+    id: "starbucks_whole_foods",
+    tag: "Override",
+    hint: "MCC grocery → dining",
+  },
+  { id: "cvs", tag: "Drugstore", hint: "Flex 3x" },
+  { id: "best_buy", tag: "Catch-all", hint: "Double Cash 2%" },
+];
+
 export function TerminalPay() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -33,7 +51,10 @@ export function TerminalPay() {
       .merchants()
       .then((list) => {
         setMerchants(list);
-        if (list[0]) setSelectedId(list[0].id);
+        const firstPitch = PITCH_CHIPS.find((chip) =>
+          list.some((m) => m.id === chip.id),
+        );
+        setSelectedId(firstPitch?.id ?? list[0]?.id ?? "");
       })
       .catch((e: Error) => {
         setError(e.message);
@@ -42,6 +63,14 @@ export function TerminalPay() {
   }, []);
 
   const merchant = merchants.find((m) => m.id === selectedId) ?? null;
+  const pitchChips = PITCH_CHIPS.filter((chip) =>
+    merchants.some((m) => m.id === chip.id),
+  );
+
+  function selectMerchant(id: string) {
+    setSelectedId(id);
+    resetOutcome();
+  }
 
   useEffect(() => {
     if (!merchant) {
@@ -120,15 +149,44 @@ export function TerminalPay() {
 
           <div className="space-y-8 px-6 py-10 text-center md:px-10">
             <div>
-              <label className="text-sm text-muted">Charge at</label>
+              <p className="text-sm text-muted">Pitch taps</p>
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {pitchChips.map((chip) => {
+                  const active = selectedId === chip.id;
+                  return (
+                    <button
+                      key={chip.id}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => selectMerchant(chip.id)}
+                      className={`rounded-full border px-3 py-2 text-left transition disabled:opacity-50 ${
+                        active
+                          ? "border-accent bg-accent/10 text-accent"
+                          : "border-line text-muted hover:border-accent hover:text-foreground"
+                      }`}
+                    >
+                      <span className="block text-xs tracking-wide uppercase">
+                        {chip.tag}
+                      </span>
+                      <span className="mt-0.5 block text-sm text-foreground">
+                        {merchants.find((m) => m.id === chip.id)?.name ?? chip.id}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted">
+                        {chip.hint}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <label className="mt-6 block text-sm text-muted">
+                Or pick any merchant
+              </label>
               <select
                 className="mt-2 w-full appearance-none rounded-2xl border border-line bg-[#0c1210] px-4 py-3 text-center text-lg outline-none focus:border-accent"
                 value={selectedId}
                 disabled={busy || merchants.length === 0}
-                onChange={(e) => {
-                  setSelectedId(e.target.value);
-                  resetOutcome();
-                }}
+                onChange={(e) => selectMerchant(e.target.value)}
               >
                 {merchants.length === 0 ? (
                   <option value="">Loading merchants…</option>
