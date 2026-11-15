@@ -176,7 +176,7 @@ export function Dashboard() {
                   rel="noopener noreferrer"
                   className="rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10"
                 >
-                  Open Wallet pass
+                  Apple Wallet
                 </a>
               ) : (
                 <button
@@ -188,6 +188,16 @@ export function Dashboard() {
                   {pending ? "Creating pass…" : "Add to Apple Wallet"}
                 </button>
               )}
+              {wallet?.google_save_url ? (
+                <a
+                  href={wallet.google_save_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10"
+                >
+                  Google Wallet
+                </a>
+              ) : null}
             </div>
             <WalletStatus
               wallet={wallet}

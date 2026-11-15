@@ -80,7 +80,14 @@ stripe listen \
   --forward-to localhost:8000/webhooks/stripe
 ```
 
-Copy the `whsec_…` value into `.env` as `STRIPE_WEBHOOK_SECRET` and restart the API. For Apple Wallet presence, set `WALLETWALLET_API_KEY` from [walletwallet.dev](https://www.walletwallet.dev) the same way.
+Copy the `whsec_…` value into `.env` as `STRIPE_WEBHOOK_SECRET` and restart the API. For Wallet passes, set `WALLETWALLET_API_KEY` from [walletwallet.dev](https://www.walletwallet.dev), plus optional fixed links:
+
+```bash
+WALLETWALLET_APPLE_PASS_URL=https://pass.walletwallet.dev/p/<apple-id>
+WALLETWALLET_GOOGLE_PASS_URL=https://pass.walletwallet.dev/p/<google-id>
+```
+
+Restart the API so `/wallet/status` seeds both links on the dashboard.
 
 ### Troubleshooting
 

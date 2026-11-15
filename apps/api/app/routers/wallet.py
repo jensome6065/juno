@@ -2,14 +2,13 @@ from fastapi import APIRouter, HTTPException
 
 from app.schemas import WalletPassOut, WalletStatusOut
 from app.services import walletwallet
-from app.store import get_pass_state
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
 
 
 @router.get("/status", response_model=WalletStatusOut)
 def wallet_status() -> WalletStatusOut:
-    state = get_pass_state()
+    state = walletwallet.ensure_pass_links()
     return WalletStatusOut(
         configured=walletwallet.configured(),
         serial_number=state.get("serial_number"),

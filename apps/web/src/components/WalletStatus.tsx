@@ -11,12 +11,12 @@ type Props = {
 };
 
 export function WalletStatus({ wallet, pending, error, onAdd }: Props) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"apple" | "google" | null>(null);
 
   const configured = wallet?.configured === true;
-  const inWallet = Boolean(wallet?.serial_number);
-  const shareUrl = wallet?.share_url ?? null;
+  const appleUrl = wallet?.share_url ?? null;
   const googleUrl = wallet?.google_save_url ?? null;
+  const inWallet = Boolean(wallet?.serial_number || appleUrl || googleUrl);
 
   const stateLabel = !wallet
     ? "Checking…"
@@ -32,14 +32,13 @@ export function WalletStatus({ wallet, pending, error, onAdd }: Props) {
       ? "text-accent"
       : "text-muted";
 
-  async function copyShare() {
-    if (!shareUrl) return;
+  async function copyLink(kind: "apple" | "google", url: string) {
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1600);
+      await navigator.clipboard.writeText(url);
+      setCopied(kind);
+      window.setTimeout(() => setCopied(null), 1600);
     } catch {
-      setCopied(false);
+      setCopied(null);
     }
   }
 
@@ -47,7 +46,7 @@ export function WalletStatus({ wallet, pending, error, onAdd }: Props) {
     <div className="space-y-3 border-t border-line pt-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <p className="text-xs tracking-[0.2em] text-muted uppercase">
-          Apple Wallet
+          Wallet passes
         </p>
         <p className={`text-xs tracking-wide uppercase ${stateClass}`}>
           {stateLabel}
@@ -70,13 +69,15 @@ export function WalletStatus({ wallet, pending, error, onAdd }: Props) {
         </p>
       ) : inWallet ? (
         <div className="space-y-2 text-sm text-muted">
+          {wallet?.serial_number ? (
+            <p>
+              Pass serial{" "}
+              <code className="text-foreground">{wallet.serial_number}</code>
+            </p>
+          ) : null}
           <p>
-            Pass serial{" "}
-            <code className="text-foreground">{wallet?.serial_number}</code>
-          </p>
-          <p>
-            Open the link on your phone to add or reopen the pass. After each
-            terminal tap, the pass updates with the winning card.
+            Open Apple or Google on your phone. After each terminal tap, the
+            Apple pass updates with the winning card.
           </p>
         </div>
       ) : (
@@ -86,25 +87,45 @@ export function WalletStatus({ wallet, pending, error, onAdd }: Props) {
       )}
 
       <div className="flex flex-wrap gap-2">
-        {shareUrl ? (
+        {appleUrl ? (
           <>
             <a
-              href={shareUrl}
+              href={appleUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-full border border-accent px-4 py-2 text-sm text-accent transition hover:bg-accent/10"
             >
-              Open pass link
+              Apple Wallet
             </a>
             <button
               type="button"
-              onClick={copyShare}
+              onClick={() => copyLink("apple", appleUrl)}
               className="rounded-full border border-line px-4 py-2 text-sm text-muted transition hover:border-accent hover:text-foreground"
             >
-              {copied ? "Copied" : "Copy link"}
+              {copied === "apple" ? "Copied" : "Copy Apple link"}
             </button>
           </>
-        ) : (
+        ) : null}
+        {googleUrl ? (
+          <>
+            <a
+              href={googleUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-full border border-accent px-4 py-2 text-sm text-accent transition hover:bg-accent/10"
+            >
+              Google Wallet
+            </a>
+            <button
+              type="button"
+              onClick={() => copyLink("google", googleUrl)}
+              className="rounded-full border border-line px-4 py-2 text-sm text-muted transition hover:border-accent hover:text-foreground"
+            >
+              {copied === "google" ? "Copied" : "Copy Google link"}
+            </button>
+          </>
+        ) : null}
+        {!appleUrl && !googleUrl ? (
           <button
             type="button"
             disabled={pending || !configured}
@@ -113,16 +134,6 @@ export function WalletStatus({ wallet, pending, error, onAdd }: Props) {
           >
             {pending ? "Creating pass…" : "Create Wallet pass"}
           </button>
-        )}
-        {googleUrl ? (
-          <a
-            href={googleUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full border border-line px-4 py-2 text-sm text-muted transition hover:border-accent hover:text-foreground"
-          >
-            Google Wallet
-          </a>
         ) : null}
         {inWallet && configured ? (
           <button
@@ -131,7 +142,7 @@ export function WalletStatus({ wallet, pending, error, onAdd }: Props) {
             onClick={onAdd}
             className="rounded-full border border-line px-4 py-2 text-sm text-muted transition hover:border-accent hover:text-foreground disabled:opacity-50"
           >
-            Recreate pass
+            Sync / recreate pass
           </button>
         ) : null}
       </div>

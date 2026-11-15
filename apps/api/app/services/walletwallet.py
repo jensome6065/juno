@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 import httpx
@@ -10,10 +11,52 @@ import httpx
 from app.store import get_pass_state, list_transactions, set_pass_state
 
 BASE_URL = "https://api.walletwallet.dev"
+_PASS_ID_RE = re.compile(r"/p/([0-9a-fA-F-]{36})")
 
 
 def configured() -> bool:
     return bool(os.getenv("WALLETWALLET_API_KEY", "").strip())
+
+
+def _env_apple_url() -> str:
+    return os.getenv("WALLETWALLET_APPLE_PASS_URL", "").strip()
+
+
+def _env_google_url() -> str:
+    return os.getenv("WALLETWALLET_GOOGLE_PASS_URL", "").strip()
+
+
+def _serial_from_url(url: str) -> str | None:
+    match = _PASS_ID_RE.search(url or "")
+    return match.group(1) if match else None
+
+
+def ensure_pass_links() -> dict[str, Any]:
+    """Seed Apple/Google share links from env when the DB row is empty or stale."""
+    state = get_pass_state()
+    apple = _env_apple_url()
+    google = _env_google_url()
+    if not apple and not google:
+        return state
+
+    serial = (
+        state.get("serial_number")
+        or _serial_from_url(apple)
+        or _serial_from_url(google)
+    )
+    next_state = {
+        "serial_number": serial,
+        "share_url": apple or state.get("share_url"),
+        "google_save_url": google or state.get("google_save_url"),
+        "apple_pass_path": state.get("apple_pass_path"),
+    }
+    if (
+        next_state.get("serial_number") == state.get("serial_number")
+        and next_state.get("share_url") == state.get("share_url")
+        and next_state.get("google_save_url") == state.get("google_save_url")
+    ):
+        return state
+    return set_pass_state(next_state)
 
 
 def _headers() -> dict[str, str]:
@@ -95,23 +138,29 @@ def create_pass() -> dict[str, Any]:
             raise RuntimeError(f"WalletWallet create failed ({res.status_code}): {res.text}")
         data = res.json()
 
+    apple = _env_apple_url()
+    google = _env_google_url()
     set_pass_state(
         {
-            "serial_number": data.get("serialNumber"),
-            "share_url": data.get("shareUrl"),
-            "google_save_url": data.get("googleSaveUrl"),
+            "serial_number": (
+                _serial_from_url(apple)
+                or data.get("serialNumber")
+            ),
+            "share_url": apple or data.get("shareUrl"),
+            "google_save_url": google or data.get("googleSaveUrl"),
         }
     )
+    state = ensure_pass_links()
     return {
-        "serial_number": data.get("serialNumber"),
-        "share_url": data.get("shareUrl"),
-        "google_save_url": data.get("googleSaveUrl"),
+        "serial_number": state.get("serial_number") or data.get("serialNumber"),
+        "share_url": state.get("share_url") or data.get("shareUrl"),
+        "google_save_url": state.get("google_save_url") or data.get("googleSaveUrl"),
         "apple_pass": data.get("applePass"),
     }
 
 
 def update_pass() -> dict[str, Any] | None:
-    state = get_pass_state()
+    state = ensure_pass_links()
     serial = state.get("serial_number")
     if not serial or not configured():
         return None
@@ -126,15 +175,19 @@ def update_pass() -> dict[str, Any] | None:
             raise RuntimeError(f"WalletWallet update failed ({res.status_code}): {res.text}")
         data = res.json()
 
+    apple = _env_apple_url()
+    google = _env_google_url()
     set_pass_state(
         {
             "serial_number": data.get("serialNumber") or serial,
-            "share_url": data.get("shareUrl") or state.get("share_url"),
-            "google_save_url": data.get("googleSaveUrl") or state.get("google_save_url"),
+            "share_url": apple or data.get("shareUrl") or state.get("share_url"),
+            "google_save_url": google
+            or data.get("googleSaveUrl")
+            or state.get("google_save_url"),
         }
     )
     return {
         "serial_number": data.get("serialNumber") or serial,
-        "share_url": data.get("shareUrl") or state.get("share_url"),
+        "share_url": apple or data.get("shareUrl") or state.get("share_url"),
         "updated": True,
     }
