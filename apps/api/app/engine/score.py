@@ -61,7 +61,7 @@ def score_card(
 
     bonus_key, bonus_rate = _bonus_rate(card, category)
     default_rate = float(card["rates"]["default"])
-    cap = (card.get("caps") or {}).get(bonus_key)
+    cap = _cap_limit(card, bonus_key)
     bonus_cents, default_cents = _split_cap(
         amount_cents, cap, cap_spent_cents, bonus_rate, default_rate
     )
@@ -189,6 +189,25 @@ def _bonus_rate(card: dict, category: str) -> tuple:
     if category in rates:
         return category, float(rates[category])
     return "default", float(rates["default"])
+
+
+def _cap_limit(card: dict, bonus_key: str) -> Optional[int]:
+    """Bonus spend limit in cents. Caps may be a bare int or `{limit_cents, period}`."""
+    raw = (card.get("caps") or {}).get(bonus_key)
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        return int(raw["limit_cents"])
+    return int(raw)
+
+
+def _cap_period(card: dict, bonus_key: str) -> str:
+    raw = (card.get("caps") or {}).get(bonus_key)
+    if isinstance(raw, dict) and raw.get("period"):
+        return str(raw["period"])
+    if bonus_key == "rotating":
+        return "quarter"
+    return "calendar_year"
 
 
 def _split_cap(amount_cents, cap, spent_cents, bonus_rate, default_rate):

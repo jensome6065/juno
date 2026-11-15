@@ -7,6 +7,13 @@
     "amount_cents": 600
   },
   {
+    "id": "restaurant",
+    "name": "Local Bistro",
+    "category": "dining",
+    "mcc": "5812",
+    "amount_cents": 4800
+  },
+  {
     "id": "grocery",
     "name": "Whole Foods",
     "category": "groceries",
@@ -14,10 +21,66 @@
     "amount_cents": 8400
   },
   {
+    "id": "meat_market",
+    "name": "Corner Butcher",
+    "category": "groceries",
+    "mcc": "5422",
+    "amount_cents": 3200
+  },
+  {
     "id": "gas",
     "name": "Shell",
     "category": "gas",
     "mcc": "5542",
     "amount_cents": 4500
+  },
+  {
+    "id": "gas_station",
+    "name": "Chevron",
+    "category": "gas",
+    "mcc": "5541",
+    "amount_cents": 5200
+  },
+  {
+    "id": "drugstore",
+    "name": "CVS",
+    "category": "drugstore",
+    "mcc": "5912",
+    "amount_cents": 2500
+  },
+  {
+    "id": "flight",
+    "name": "JetBlue",
+    "category": "travel",
+    "mcc": "4511",
+    "amount_cents": 32900
+  },
+  {
+    "id": "hotel",
+    "name": "Marriott",
+    "category": "travel",
+    "mcc": "7011",
+    "amount_cents": 18900
+  },
+  {
+    "id": "electronics",
+    "name": "Best Buy",
+    "category": "other",
+    "mcc": "5732",
+    "amount_cents": 129900
+  },
+  {
+    "id": "warehouse",
+    "name": "Costco",
+    "category": "other",
+    "mcc": "5300",
+    "amount_cents": 15600
+  },
+  {
+    "id": "department",
+    "name": "Target",
+    "category": "other",
+    "mcc": "5311",
+    "amount_cents": 6700
   }
 ]

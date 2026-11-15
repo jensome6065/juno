@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from datetime import date
+from typing import Any, Optional
 
 from app.engine.score import select_card
 
@@ -12,12 +13,18 @@ def pick_best_card(
     amount: float,
     mcc: str,
     category: str,  # noqa: ARG001 — MCC map decides category in score.py
-    spend_by_card: dict[str, float] | None = None,
+    spend_by_card: dict[str, float] | None = None,  # noqa: ARG001 — kept for callers
+    caps: dict[str, dict[str, int]] | None = None,
+    today: Optional[date] = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
-    """Return (best, scores, default) in dollars for the HTTP layer."""
+    """Return (best, scores, default) in dollars for the HTTP layer.
+
+    Prefer `caps` = `{card_id: {cap_key: spent_cents}}` for the current
+    period. `spend_by_card` is ignored for scoring; it remains on the
+    signature so existing simulate callers do not break mid-refactor.
+    """
     amount_cents = int(round(float(amount) * 100))
-    caps = _caps_from_spend(spend_by_card)
-    result = select_card(cards, amount_cents, mcc, caps=caps)
+    result = select_card(cards, amount_cents, mcc, caps=caps or {}, today=today)
 
     scores = [
         {
@@ -35,6 +42,8 @@ def pick_best_card(
         "value": round(float(result["reward_cents"]) / 100.0, 4),
         "rate_used": float(result["ranking"][0]["rate"]),
         "reason": result["reason"],
+        "category": result["category"],
+        "bonus_cents": int(result["ranking"][0].get("bonus_cents") or 0),
     }
     default = {
         "card_id": "baseline",
@@ -44,13 +53,3 @@ def pick_best_card(
         "reason": "1% everywhere",
     }
     return best, scores, default
-
-
-def _caps_from_spend(spend_by_card: dict[str, float] | None) -> dict[str, dict[str, int]]:
-    """Map simple dollar spend totals into a rotating/default cap bucket."""
-    if not spend_by_card:
-        return {}
-    caps: dict[str, dict[str, int]] = {}
-    for card_id, dollars in spend_by_card.items():
-        caps[card_id] = {"rotating": int(round(float(dollars) * 100))}
-    return caps

@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException
 
 from app.engine.router import pick_best_card
 from app.schemas import MerchantOut, RouteScore, SimulateRequest, SimulateResponse, TransactionOut
-from app.services.rules import get_merchant, load_cards, load_merchants, merchant_typical_amount
-from app.store import add_transaction, get_spend
+from app.services.rules import get_card, get_merchant, load_cards, load_merchants, merchant_typical_amount
+from app.store import add_transaction, get_caps
 
 router = APIRouter(tags=["simulate"])
 
@@ -38,15 +38,18 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         amount,
         merchant["mcc"],
         merchant["category"],
-        get_spend(),
+        caps=get_caps(cards),
     )
 
+    # Category used for scoring may come from MCC (e.g. unknown codes → other).
+    category = best.get("category") or merchant["category"]
+    chosen = get_card(best["card_id"])
     tx = add_transaction(
         {
             "merchant_name": merchant["name"],
             "merchant_id": merchant["id"],
             "mcc": merchant["mcc"],
-            "category": merchant["category"],
+            "category": category,
             "amount": amount,
             "selected_card_id": best["card_id"],
             "selected_card_name": best["card_name"],
@@ -55,7 +58,8 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
             "default_reward_value": default["value"],
             "extra_value": round(best["value"] - default["value"], 4),
             "reason": best["reason"],
-        }
+        },
+        card=chosen,
     )
 
     return SimulateResponse(

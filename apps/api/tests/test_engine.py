@@ -22,7 +22,7 @@ class ScorePurchasesTest(unittest.TestCase):
         cls.cards = load_cards()
         cls.merchants = {m["id"]: m for m in load_merchants()}
 
-    def test_library_has_six_cards_and_three_merchants(self):
+    def test_library_has_six_cards_and_demo_merchants(self):
         self.assertEqual(
             {c["id"] for c in self.cards},
             {
@@ -34,10 +34,11 @@ class ScorePurchasesTest(unittest.TestCase):
                 "reflect",
             },
         )
-        self.assertEqual(
-            {m["id"]: m["mcc"] for m in self.merchants.values()},
-            {"coffee": "5814", "grocery": "5411", "gas": "5542"},
-        )
+        self.assertGreaterEqual(len(self.merchants), 10)
+        self.assertEqual(self.merchants["coffee"]["mcc"], "5814")
+        self.assertEqual(self.merchants["grocery"]["mcc"], "5411")
+        self.assertEqual(self.merchants["gas"]["mcc"], "5542")
+        self.assertEqual(self.merchants["electronics"]["mcc"], "5732")
 
     def test_coffee_picks_amex_gold(self):
         result = self._choose("coffee")
@@ -233,6 +234,39 @@ class ScorePurchasesTest(unittest.TestCase):
         ]
         result = choose_card(twins, "other", 1000, today=TODAY)
         self.assertEqual(result["card_id"], "a_card")
+
+    def test_edge_mccs_route_to_expected_winners(self):
+        cases = [
+            ("restaurant", "amex_gold"),       # 5812 dining
+            ("meat_market", "freedom_flex"),   # 5422 groceries → rotating
+            ("gas_station", "freedom_flex"),   # 5541 gas → rotating
+            ("drugstore", "freedom_flex"),     # 5912, ties Unlimited at 3x
+            ("flight", "amex_gold"),           # 4511 travel 3x > Sapphire 2.5¢
+            ("hotel", "amex_gold"),            # 7011 travel
+            ("electronics", "double_cash"),    # 5732 other
+            ("warehouse", "double_cash"),      # 5300 warehouse clubs → other
+            ("department", "double_cash"),     # 5311 department → other
+        ]
+        for merchant_id, card_id in cases:
+            with self.subTest(merchant=merchant_id):
+                merchant = self.merchants[merchant_id]
+                result = select_card(
+                    self.cards,
+                    merchant["amount_cents"],
+                    merchant["mcc"],
+                    today=TODAY,
+                )
+                self.assertEqual(result["card_id"], card_id)
+                self.assertEqual(result["category"], merchant["category"])
+                self.assert_winner_is_max_cash_back(result)
+
+    def test_cap_schema_exposes_real_periods(self):
+        flex = next(c for c in self.cards if c["id"] == "freedom_flex")
+        gold = next(c for c in self.cards if c["id"] == "amex_gold")
+        self.assertEqual(flex["caps"]["rotating"]["limit_cents"], 150000)
+        self.assertEqual(flex["caps"]["rotating"]["period"], "quarter")
+        self.assertEqual(gold["caps"]["groceries"]["limit_cents"], 2500000)
+        self.assertEqual(gold["caps"]["groceries"]["period"], "calendar_year")
 
     def _choose(self, merchant_id: str) -> dict:
         merchant = merchant_by_id(list(self.merchants.values()), merchant_id)

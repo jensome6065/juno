@@ -15,7 +15,10 @@
       "default": 1
     },
     "caps": {
-      "groceries": 2500000
+      "groceries": {
+        "limit_cents": 2500000,
+        "period": "calendar_year"
+      }
     }
   },
   {
@@ -35,7 +38,10 @@
     },
     "rotating_categories": ["gas", "groceries"],
     "caps": {
-      "rotating": 150000
+      "rotating": {
+        "limit_cents": 150000,
+        "period": "quarter"
+      }
     }
   },
   {

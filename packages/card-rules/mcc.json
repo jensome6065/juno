@@ -2,8 +2,18 @@
   "5812": "dining",
   "5814": "dining",
   "5411": "groceries",
+  "5422": "groceries",
+  "5499": "groceries",
   "5541": "gas",
   "5542": "gas",
   "5912": "drugstore",
-  "4511": "travel"
+  "4511": "travel",
+  "7011": "travel",
+  "4112": "travel",
+  "4722": "travel",
+  "5300": "other",
+  "5310": "other",
+  "5311": "other",
+  "5732": "other",
+  "5999": "other"
 }
