@@ -13,6 +13,7 @@ import {
 import { money } from "@/lib/format";
 import { CapMeters } from "@/components/CapMeters";
 import { JunoSmartCard } from "@/components/JunoSmartCard";
+import { LiveBadge } from "@/components/LiveBadge";
 import { SavingsCompare } from "@/components/SavingsCompare";
 import { SecurityPanel } from "@/components/SecurityPanel";
 import { SiteNav } from "@/components/SiteNav";
@@ -143,7 +144,7 @@ export function Dashboard() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <SiteNav active="dashboard" />
+      <SiteNav active="dashboard" live={live} />
 
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-14 px-6 py-10 md:py-14">
         <header className="animate-rise grid gap-10 md:grid-cols-[1.05fr_0.95fr] md:items-center">
@@ -409,25 +410,3 @@ function DecideStep({
   );
 }
 
-function LiveBadge({
-  state,
-}: {
-  state: "connecting" | "live" | "offline";
-}) {
-  const label =
-    state === "live" ? "Live" : state === "connecting" ? "Connecting" : "Offline";
-  const color =
-    state === "live"
-      ? "border-accent/40 text-accent"
-      : state === "connecting"
-        ? "border-line text-muted"
-        : "border-warn/40 text-warn";
-
-  return (
-    <span
-      className={`rounded-full border px-2.5 py-0.5 text-xs tracking-wide ${color}`}
-    >
-      {label}
-    </span>
-  );
-}

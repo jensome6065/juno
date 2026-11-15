@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { SavingsCompare } from "@/components/SavingsCompare";
+import { SiteNav } from "@/components/SiteNav";
 import {
   StartupHints,
   classifyApiError,
@@ -49,6 +50,9 @@ export function TerminalPay() {
   const [error, setError] = useState<string | null>(null);
   const [authId, setAuthId] = useState<string | null>(null);
   const [financeMode, setFinanceMode] = useState(false);
+  const [live, setLive] = useState<"connecting" | "live" | "offline">(
+    "connecting",
+  );
   const [pending, startTransition] = useTransition();
   const carryMonths = financeMode ? 12 : 0;
 
@@ -70,6 +74,23 @@ export function TerminalPay() {
         setError(e.message);
         setPhase("error");
       });
+  }, []);
+
+  useEffect(() => {
+    const source = new EventSource(api.eventsUrl());
+    source.onopen = () => setLive("live");
+    source.onerror = () => setLive("offline");
+    source.onmessage = (message) => {
+      try {
+        const event = JSON.parse(message.data) as { type?: string };
+        if (event.type === "connected" || event.type === "decision.created") {
+          setLive("live");
+        }
+      } catch {
+        // ignore malformed events
+      }
+    };
+    return () => source.close();
   }, []);
 
   const merchant = merchants.find((m) => m.id === selectedId) ?? null;
@@ -169,17 +190,7 @@ export function TerminalPay() {
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-[#070b09]">
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-6 pt-6">
-        <Link
-          href="/"
-          className="text-sm text-muted transition hover:text-foreground"
-        >
-          ← Dashboard
-        </Link>
-        <p className="font-[family-name:var(--font-display)] text-sm tracking-[0.3em] text-accent uppercase">
-          Juno Terminal
-        </p>
-      </div>
+      <SiteNav active="terminal" live={live} />
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-10">
         <div className="animate-rise overflow-hidden rounded-[32px] border border-line bg-[#101814] shadow-[0_40px_100px_rgba(0,0,0,0.55)]">

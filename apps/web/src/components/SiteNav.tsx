@@ -1,14 +1,26 @@
 import Link from "next/link";
+import { LiveBadge } from "@/components/LiveBadge";
 
-export function SiteNav({ active }: { active: "dashboard" | "terminal" }) {
+type LiveState = "connecting" | "live" | "offline";
+
+export function SiteNav({
+  active,
+  live,
+}: {
+  active: "dashboard" | "terminal";
+  live?: LiveState;
+}) {
   return (
     <nav className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 pt-6">
-      <Link
-        href="/"
-        className="font-[family-name:var(--font-display)] text-sm tracking-[0.35em] text-accent uppercase"
-      >
-        Juno
-      </Link>
+      <div className="flex items-center gap-3">
+        <Link
+          href="/"
+          className="font-[family-name:var(--font-display)] text-sm tracking-[0.35em] text-accent uppercase"
+        >
+          Juno
+        </Link>
+        {live ? <LiveBadge state={live} /> : null}
+      </div>
       <div className="flex items-center gap-2 text-sm">
         <Link
           href="/"
