@@ -3,6 +3,7 @@ import time
 from fastapi import APIRouter, HTTPException
 
 from app.engine.router import pick_best_card
+from app.events import publish
 from app.schemas import MerchantOut, RouteScore, SimulateRequest, SimulateResponse, TransactionOut
 from app.services import walletwallet
 from app.services.rules import get_card, get_merchant, load_cards, load_merchants, merchant_typical_amount
@@ -72,6 +73,16 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         card=chosen,
     )
     latency_ms = round((time.perf_counter() - started) * 1000, 2)
+    transaction = TransactionOut(**tx)
+
+    publish(
+        "decision.created",
+        {
+            "transaction": transaction.model_dump(),
+            "scores": scores,
+            "latency_ms": latency_ms,
+        },
+    )
 
     wallet_updated = False
     try:
@@ -81,7 +92,7 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         wallet_updated = False
 
     return SimulateResponse(
-        transaction=TransactionOut(**tx),
+        transaction=transaction,
         scores=[RouteScore(**s) for s in scores],
         wallet_updated=wallet_updated,
         latency_ms=latency_ms,

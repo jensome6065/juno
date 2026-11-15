@@ -78,7 +78,15 @@ export type WalletPass = {
   apple_pass: string | null;
 };
 
+export type DecisionEvent = {
+  type: "decision.created" | "connected" | string;
+  transaction?: Transaction;
+  scores?: SimulateResponse["scores"];
+  latency_ms?: number;
+};
+
 export const api = {
+  baseUrl: API_URL,
   cards: () => request<Card[]>("/cards"),
   merchants: () => request<Merchant[]>("/merchants"),
   transactions: () => request<Transaction[]>("/transactions"),
@@ -92,4 +100,5 @@ export const api = {
     request<WalletPass>("/wallet/pass", {
       method: "POST",
     }),
+  eventsUrl: () => `${API_URL}/events`,
 };

@@ -5,6 +5,7 @@ import { useEffect, useState, useTransition } from "react";
 import {
   api,
   type Card,
+  type DecisionEvent,
   type Transaction,
   type WalletStatus,
 } from "@/lib/api";
@@ -17,6 +18,9 @@ export function Dashboard() {
   const [wallet, setWallet] = useState<WalletStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [live, setLive] = useState<"connecting" | "live" | "offline">(
+    "connecting",
+  );
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -27,6 +31,33 @@ export function Dashboard() {
         setWallet(w);
       })
       .catch((e: Error) => setError(e.message));
+  }, []);
+
+  useEffect(() => {
+    const source = new EventSource(api.eventsUrl());
+
+    source.onopen = () => setLive("live");
+    source.onerror = () => setLive("offline");
+    source.onmessage = (message) => {
+      try {
+        const event = JSON.parse(message.data) as DecisionEvent;
+        if (event.type === "connected") {
+          setLive("live");
+          return;
+        }
+        if (event.type === "decision.created" && event.transaction) {
+          setTxs((prev) => {
+            if (prev.some((tx) => tx.id === event.transaction!.id)) return prev;
+            return [event.transaction!, ...prev];
+          });
+          api.cards().then(setCards).catch(() => {});
+        }
+      } catch {
+        // ignore malformed events
+      }
+    };
+
+    return () => source.close();
   }, []);
 
   const extraTotal = txs.reduce((sum, tx) => sum + tx.extra_value, 0);
@@ -60,9 +91,12 @@ export function Dashboard() {
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-14 px-6 py-10 md:py-14">
         <header className="animate-rise grid gap-10 md:grid-cols-[1.05fr_0.95fr] md:items-end">
           <div className="space-y-5">
-            <p className="text-sm tracking-[0.2em] text-muted uppercase">
-              Account
-            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="text-sm tracking-[0.2em] text-muted uppercase">
+                Account
+              </p>
+              <LiveBadge state={live} />
+            </div>
             <h1 className="font-[family-name:var(--font-display)] max-w-xl text-5xl leading-[0.95] font-semibold tracking-tight md:text-6xl">
               Your Juno
               <span className="block text-muted">wallet dashboard</span>
@@ -195,7 +229,8 @@ export function Dashboard() {
               Transaction history
             </h2>
             <p className="mt-2 text-sm text-muted">
-              Which card won, why, and how much more you earned.
+              Live from the terminal — which card won, why, and how much more
+              you earned.
             </p>
             <ul className="mt-6 space-y-4">
               {txs.length === 0 ? (
@@ -241,5 +276,28 @@ function Stat({ label, value }: { label: string; value: string }) {
         {value}
       </p>
     </div>
+  );
+}
+
+function LiveBadge({
+  state,
+}: {
+  state: "connecting" | "live" | "offline";
+}) {
+  const label =
+    state === "live" ? "Live" : state === "connecting" ? "Connecting" : "Offline";
+  const color =
+    state === "live"
+      ? "border-accent/40 text-accent"
+      : state === "connecting"
+        ? "border-line text-muted"
+        : "border-warn/40 text-warn";
+
+  return (
+    <span
+      className={`rounded-full border px-2.5 py-0.5 text-xs tracking-wide ${color}`}
+    >
+      {label}
+    </span>
   );
 }

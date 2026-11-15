@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import init_db
-from app.routers import cards, simulate, transactions, wallet
+from app.routers import cards, events, simulate, transactions, wallet
 
 ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(ROOT / ".env")
@@ -18,6 +18,7 @@ app = FastAPI(title="Juno API", version="0.1.0")
 @app.on_event("startup")
 def _startup() -> None:
     init_db()
+
 
 origins = [
     o.strip()
@@ -37,6 +38,7 @@ app.include_router(cards.router)
 app.include_router(transactions.router)
 app.include_router(simulate.router)
 app.include_router(wallet.router)
+app.include_router(events.router)
 
 
 @app.get("/health")
