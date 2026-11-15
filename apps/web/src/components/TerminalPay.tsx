@@ -38,7 +38,11 @@ const PITCH_CHIPS: {
 
 export function TerminalPay() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
+  const [mode, setMode] = useState<"catalog" | "custom">("catalog");
   const [selectedId, setSelectedId] = useState("");
+  const [customName, setCustomName] = useState("");
+  const [customMcc, setCustomMcc] = useState("5814");
+  const [amountInput, setAmountInput] = useState("6.50");
   const [infer, setInfer] = useState<InferResponse | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [result, setResult] = useState<SimulateResponse | null>(null);
@@ -54,7 +58,11 @@ export function TerminalPay() {
         const firstPitch = PITCH_CHIPS.find((chip) =>
           list.some((m) => m.id === chip.id),
         );
-        setSelectedId(firstPitch?.id ?? list[0]?.id ?? "");
+        const first = list.find((m) => m.id === firstPitch?.id) ?? list[0];
+        if (first) {
+          setSelectedId(first.id);
+          setAmountInput(first.typical_amount.toFixed(2));
+        }
       })
       .catch((e: Error) => {
         setError(e.message);
@@ -66,25 +74,41 @@ export function TerminalPay() {
   const pitchChips = PITCH_CHIPS.filter((chip) =>
     merchants.some((m) => m.id === chip.id),
   );
+  const amountValue = Number.parseFloat(amountInput);
+  const amountOk = Number.isFinite(amountValue) && amountValue > 0;
+  const customOk =
+    customName.trim().length > 0 && /^\d{3,8}$/.test(customMcc.trim());
+  const canTap =
+    amountOk &&
+    (mode === "catalog" ? Boolean(merchant) : customOk) &&
+    !pending;
+
+  const previewName =
+    mode === "catalog" ? (merchant?.name ?? "") : customName.trim();
+  const previewMcc =
+    mode === "catalog" ? (merchant?.mcc ?? "") : customMcc.trim();
 
   function selectMerchant(id: string) {
+    setMode("catalog");
     setSelectedId(id);
+    const found = merchants.find((m) => m.id === id);
+    if (found) setAmountInput(found.typical_amount.toFixed(2));
     resetOutcome();
   }
 
   useEffect(() => {
-    if (!merchant) {
+    if (!previewName || !previewMcc) {
       setInfer(null);
       return;
     }
     const handle = window.setTimeout(() => {
       api
-        .infer(merchant.name, merchant.mcc)
+        .infer(previewName, previewMcc)
         .then(setInfer)
         .catch(() => setInfer(null));
     }, 120);
     return () => window.clearTimeout(handle);
-  }, [merchant]);
+  }, [previewName, previewMcc]);
 
   function resetOutcome() {
     setPhase("idle");
@@ -94,7 +118,8 @@ export function TerminalPay() {
   }
 
   function startTap(replay = false) {
-    if (!merchant || pending) return;
+    if (!canTap && !replay) return;
+    if (replay && (!authId || !amountOk)) return;
     setError(null);
     if (!replay) setResult(null);
     setPhase("waiting");
@@ -112,8 +137,15 @@ export function TerminalPay() {
         await wait(700);
         setPhase("reading");
         await wait(900);
-        // Catalog pick still goes through DE inference (name + MCC).
-        const res = await api.simulate(merchant.id, undefined, nextAuthId);
+        const res =
+          mode === "catalog" && merchant
+            ? await api.simulate(merchant.id, amountValue, nextAuthId)
+            : await api.simulateFreeText({
+                merchant_name: customName.trim(),
+                mcc: customMcc.trim(),
+                amount: amountValue,
+                authorization_id: nextAuthId,
+              });
         setAuthId(res.authorization_id ?? nextAuthId);
         setResult(res);
         setPhase("approved");
@@ -179,25 +211,92 @@ export function TerminalPay() {
                 })}
               </div>
 
-              <label className="mt-6 block text-sm text-muted">
-                Or pick any merchant
-              </label>
-              <select
-                className="mt-2 w-full appearance-none rounded-2xl border border-line bg-[#0c1210] px-4 py-3 text-center text-lg outline-none focus:border-accent"
-                value={selectedId}
-                disabled={busy || merchants.length === 0}
-                onChange={(e) => selectMerchant(e.target.value)}
-              >
-                {merchants.length === 0 ? (
-                  <option value="">Loading merchants…</option>
-                ) : (
-                  merchants.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))
-                )}
-              </select>
+              <div className="mt-6 flex justify-center gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setMode("catalog");
+                    resetOutcome();
+                  }}
+                  className={`rounded-full border px-4 py-2 text-sm transition ${
+                    mode === "catalog"
+                      ? "border-accent text-accent"
+                      : "border-line text-muted hover:text-foreground"
+                  }`}
+                >
+                  Catalog
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setMode("custom");
+                    resetOutcome();
+                  }}
+                  className={`rounded-full border px-4 py-2 text-sm transition ${
+                    mode === "custom"
+                      ? "border-accent text-accent"
+                      : "border-line text-muted hover:text-foreground"
+                  }`}
+                >
+                  Free text
+                </button>
+              </div>
+
+              {mode === "catalog" ? (
+                <>
+                  <label className="mt-4 block text-sm text-muted">
+                    Or pick any merchant
+                  </label>
+                  <select
+                    className="mt-2 w-full appearance-none rounded-2xl border border-line bg-[#0c1210] px-4 py-3 text-center text-lg outline-none focus:border-accent"
+                    value={selectedId}
+                    disabled={busy || merchants.length === 0}
+                    onChange={(e) => selectMerchant(e.target.value)}
+                  >
+                    {merchants.length === 0 ? (
+                      <option value="">Loading merchants…</option>
+                    ) : (
+                      merchants.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </>
+              ) : (
+                <div className="mt-4 grid gap-3 text-left sm:grid-cols-2">
+                  <label className="block text-sm text-muted sm:col-span-2">
+                    Merchant name
+                    <input
+                      className="mt-2 w-full rounded-2xl border border-line bg-[#0c1210] px-4 py-3 text-foreground outline-none focus:border-accent"
+                      value={customName}
+                      disabled={busy}
+                      placeholder="Starbucks at Whole Foods"
+                      onChange={(e) => {
+                        setCustomName(e.target.value);
+                        resetOutcome();
+                      }}
+                    />
+                  </label>
+                  <label className="block text-sm text-muted">
+                    MCC
+                    <input
+                      className="mt-2 w-full rounded-2xl border border-line bg-[#0c1210] px-4 py-3 text-foreground outline-none focus:border-accent"
+                      value={customMcc}
+                      disabled={busy}
+                      placeholder="5411"
+                      onChange={(e) => {
+                        setCustomMcc(e.target.value);
+                        resetOutcome();
+                      }}
+                    />
+                  </label>
+                </div>
+              )}
+
               {infer ? (
                 <p className="mt-2 text-sm text-muted">
                   Inferred{" "}
@@ -208,18 +307,34 @@ export function TerminalPay() {
                     ? ` (MCC looked like ${infer.mcc_category})`
                     : null}
                 </p>
-              ) : merchant ? (
-                <p className="mt-2 text-sm text-muted">
-                  MCC {merchant.mcc}
-                </p>
+              ) : previewMcc ? (
+                <p className="mt-2 text-sm text-muted">MCC {previewMcc}</p>
               ) : null}
             </div>
 
             <div>
-              <p className="text-sm text-muted">Amount due</p>
-              <p className="mt-2 font-[family-name:var(--font-display)] text-6xl tracking-tight md:text-7xl">
-                {merchant ? money(merchant.typical_amount) : "—"}
-              </p>
+              <label className="text-sm text-muted">Amount due</label>
+              <div className="mt-2 flex items-center justify-center gap-2">
+                <span className="font-[family-name:var(--font-display)] text-4xl text-muted">
+                  $
+                </span>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  inputMode="decimal"
+                  disabled={busy}
+                  value={amountInput}
+                  onChange={(e) => {
+                    setAmountInput(e.target.value);
+                    resetOutcome();
+                  }}
+                  className="w-40 bg-transparent text-center font-[family-name:var(--font-display)] text-6xl tracking-tight outline-none md:text-7xl"
+                />
+              </div>
+              {!amountOk ? (
+                <p className="mt-2 text-sm text-warn">Enter an amount over $0</p>
+              ) : null}
             </div>
 
             <TapStage phase={phase} />
@@ -274,7 +389,7 @@ export function TerminalPay() {
               {phase === "idle" || phase === "error" ? (
                 <button
                   type="button"
-                  disabled={!merchant || pending}
+                  disabled={!canTap}
                   onClick={() => startTap()}
                   className="rounded-full bg-accent px-8 py-4 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-50"
                 >
