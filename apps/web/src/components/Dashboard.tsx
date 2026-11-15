@@ -10,6 +10,7 @@ import {
   type WalletStatus,
 } from "@/lib/api";
 import { money } from "@/lib/format";
+import { SecurityPanel } from "@/components/SecurityPanel";
 import { SiteNav } from "@/components/SiteNav";
 
 export function Dashboard() {
@@ -263,6 +264,8 @@ export function Dashboard() {
             </ul>
           </div>
         </section>
+
+        <SecurityPanel live={live} />
       </div>
     </div>
   );

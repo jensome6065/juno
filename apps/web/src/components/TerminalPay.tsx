@@ -13,6 +13,7 @@ export function TerminalPay() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [result, setResult] = useState<SimulateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [authId, setAuthId] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -30,18 +31,22 @@ export function TerminalPay() {
 
   const merchant = merchants.find((m) => m.id === selectedId) ?? null;
 
-  function startTap() {
+  function startTap(replay = false) {
     if (!merchant || pending) return;
     setError(null);
-    setResult(null);
+    if (!replay) setResult(null);
     setPhase("waiting");
+
+    const nextAuthId =
+      replay && authId ? authId : `demo_auth_${Date.now().toString(36)}`;
 
     startTransition(async () => {
       try {
         await wait(700);
         setPhase("reading");
         await wait(900);
-        const res = await api.simulate(merchant.id);
+        const res = await api.simulate(merchant.id, undefined, nextAuthId);
+        setAuthId(res.authorization_id ?? nextAuthId);
         setResult(res);
         setPhase("approved");
       } catch (e) {
@@ -55,6 +60,7 @@ export function TerminalPay() {
     setPhase("idle");
     setResult(null);
     setError(null);
+    setAuthId(null);
   }
 
   return (
@@ -115,10 +121,20 @@ export function TerminalPay() {
               <div className="animate-rise space-y-4 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-5 text-left">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm text-accent">Approved</p>
+                    <p className="text-sm text-accent">
+                      {result.idempotent_replay ? "Replay blocked" : "Approved"}
+                    </p>
                     {typeof result.latency_ms === "number" ? (
                       <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-muted">
                         routed in {formatLatency(result.latency_ms)}
+                      </span>
+                    ) : null}
+                    <span className="rounded-full border border-accent/40 px-2.5 py-0.5 text-xs text-accent">
+                      auth-bound
+                    </span>
+                    {result.idempotent_replay ? (
+                      <span className="rounded-full border border-warn/40 px-2.5 py-0.5 text-xs text-warn">
+                        idempotent
                       </span>
                     ) : null}
                   </div>
@@ -161,6 +177,14 @@ export function TerminalPay() {
               ) : null}
               {phase === "approved" ? (
                 <>
+                  <button
+                    type="button"
+                    disabled={!authId || pending}
+                    onClick={() => startTap(true)}
+                    className="rounded-full border border-line px-8 py-4 text-sm transition hover:border-accent disabled:opacity-50"
+                  >
+                    Replay same auth
+                  </button>
                   <button
                     type="button"
                     onClick={reset}

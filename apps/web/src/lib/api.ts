@@ -62,6 +62,19 @@ export type SimulateResponse = {
   }>;
   wallet_updated?: boolean;
   latency_ms?: number;
+  signature_verified?: boolean;
+  authorization_id?: string | null;
+  idempotent_replay?: boolean;
+};
+
+export type SecurityStatus = {
+  stripe_webhook_secret_configured: boolean;
+  stripe_api_key_configured: boolean;
+  signature_required: boolean;
+  stores_raw_pan: boolean;
+  idempotent_authorizations: boolean;
+  realtime_decision_stream: boolean;
+  webhook_path: string;
 };
 
 export type WalletStatus = {
@@ -90,15 +103,51 @@ export const api = {
   cards: () => request<Card[]>("/cards"),
   merchants: () => request<Merchant[]>("/merchants"),
   transactions: () => request<Transaction[]>("/transactions"),
-  simulate: (merchant_id: string, amount?: number) =>
+  simulate: (merchant_id: string, amount?: number, authorization_id?: string) =>
     request<SimulateResponse>("/simulate", {
       method: "POST",
-      body: JSON.stringify({ merchant_id, amount }),
+      body: JSON.stringify({ merchant_id, amount, authorization_id }),
     }),
   walletStatus: () => request<WalletStatus>("/wallet/status"),
   createWalletPass: () =>
     request<WalletPass>("/wallet/pass", {
       method: "POST",
     }),
+  securityStatus: () => request<SecurityStatus>("/security/status"),
   eventsUrl: () => `${API_URL}/events`,
+  async probeUnsignedWebhook(): Promise<{ status: number; detail: string }> {
+    const res = await fetch(`${API_URL}/webhooks/stripe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+      cache: "no-store",
+    });
+    let detail = res.statusText;
+    try {
+      const data = (await res.json()) as { detail?: string };
+      if (data.detail) detail = data.detail;
+    } catch {
+      // non-json body
+    }
+    return { status: res.status, detail };
+  },
+  async probeBadSignatureWebhook(): Promise<{ status: number; detail: string }> {
+    const res = await fetch(`${API_URL}/webhooks/stripe`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Stripe-Signature": "t=1,v1=deadbeef",
+      },
+      body: "{}",
+      cache: "no-store",
+    });
+    let detail = res.statusText;
+    try {
+      const data = (await res.json()) as { detail?: string };
+      if (data.detail) detail = data.detail;
+    } catch {
+      // non-json body
+    }
+    return { status: res.status, detail };
+  },
 };

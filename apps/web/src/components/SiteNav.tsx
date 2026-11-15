@@ -20,6 +20,14 @@ export function SiteNav({ active }: { active: "dashboard" | "terminal" }) {
         >
           Dashboard
         </Link>
+        {active === "dashboard" ? (
+          <a
+            href="#security"
+            className="rounded-full px-4 py-2 text-muted transition hover:text-foreground"
+          >
+            Security
+          </a>
+        ) : null}
         <Link
           href="/terminal"
           className={`rounded-full px-4 py-2 transition ${
