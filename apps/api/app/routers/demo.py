@@ -118,7 +118,7 @@ def reset_demo() -> ResetResponse:
 
 
 @router.post("/script", response_model=DemoScriptResponse)
-def run_demo_script(body: DemoScriptRequest | None = None) -> DemoScriptResponse:
+def run_demo_script(body: Optional[DemoScriptRequest] = None) -> DemoScriptResponse:
     """Seed a varied pitch history (coffee, gas, grocery, drugstore, flight, …).
 
     Fixed authorization_ids make the script idempotent after a reset.

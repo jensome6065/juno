@@ -90,7 +90,7 @@ export function StartupHints({ kind, detail, className = "" }: Props) {
 
   return (
     <div
-      className={`border border-line/80 bg-[#0c1210]/60 px-4 py-4 text-left ${className}`}
+      className={`border border-line/80 bg-background/60 px-4 py-4 text-left ${className}`}
     >
       <p
         className={`text-sm font-medium ${

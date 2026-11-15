@@ -189,7 +189,7 @@ export function TerminalPay() {
   const busy = phase === "waiting" || phase === "reading";
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-[#070b09]">
+    <div className="flex min-h-full flex-1 flex-col bg-background">
       <SiteNav active="terminal" live={live} />
 
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-10">
@@ -269,7 +269,7 @@ export function TerminalPay() {
                     Or pick any merchant
                   </label>
                   <select
-                    className="mt-2 w-full appearance-none rounded-2xl border border-line bg-[#0c1210] px-4 py-3 text-center text-lg outline-none focus:border-accent"
+                    className="mt-2 w-full appearance-none rounded-2xl border border-line bg-background px-4 py-3 text-center text-lg outline-none focus:border-accent"
                     value={selectedId}
                     disabled={busy || merchants.length === 0}
                     onChange={(e) => selectMerchant(e.target.value)}
@@ -290,7 +290,7 @@ export function TerminalPay() {
                   <label className="block text-sm text-muted sm:col-span-2">
                     Merchant name
                     <input
-                      className="mt-2 w-full rounded-2xl border border-line bg-[#0c1210] px-4 py-3 text-foreground outline-none focus:border-accent"
+                      className="mt-2 w-full rounded-2xl border border-line bg-background px-4 py-3 text-foreground outline-none focus:border-accent"
                       value={customName}
                       disabled={busy}
                       placeholder="Starbucks at Whole Foods"
@@ -303,7 +303,7 @@ export function TerminalPay() {
                   <label className="block text-sm text-muted">
                     MCC
                     <input
-                      className="mt-2 w-full rounded-2xl border border-line bg-[#0c1210] px-4 py-3 text-foreground outline-none focus:border-accent"
+                      className="mt-2 w-full rounded-2xl border border-line bg-background px-4 py-3 text-foreground outline-none focus:border-accent"
                       value={customMcc}
                       disabled={busy}
                       placeholder="5411"
@@ -592,7 +592,7 @@ function TapStage({ phase }: { phase: Phase }) {
             ? "animate-pulse-ring bg-accent/10"
             : phase === "approved"
               ? "bg-accent text-accent-ink"
-              : "bg-[#0c1210]"
+              : "bg-background"
         }`}
       >
         <span className="font-[family-name:var(--font-display)] text-sm tracking-wide">

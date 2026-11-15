@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0c1210;
+  --background: #0a0b0a;
   --foreground: #e8f0ea;
   --muted: #8fa396;
-  --panel: #141c18;
-  --line: #24302a;
+  --panel: #121412;
+  --line: #242824;
   --accent: #b8f255;
   --accent-ink: #10200a;
-  --card-face: #1a2820;
+  --card-face: #161916;
   --warn: #f0c674;
 }
 
@@ -26,17 +26,13 @@
   --font-display: var(--font-syne);
 }
 
+html,
 body {
-  /* Soft green wash that actually fades — same-hue alphas avoid a hard band */
-  background:
-    radial-gradient(
-      ellipse 110% 70% at 50% -8%,
-      rgba(56, 96, 64, 0.45) 0%,
-      rgba(28, 52, 36, 0.28) 32%,
-      rgba(18, 32, 24, 0.12) 55%,
-      rgba(12, 18, 16, 0) 78%
-    ),
-    var(--background);
+  background: var(--background);
+  background-image: none;
+}
+
+body {
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
