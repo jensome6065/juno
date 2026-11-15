@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { SiteNav } from "@/components/SiteNav";
-import { api, type SecurityStatus } from "@/lib/api";
+import { api, type AuditEvent, type SecurityStatus } from "@/lib/api";
 
 type ProbeResult = { status: number; detail: string };
 
@@ -12,6 +12,7 @@ export function LabBench() {
     "connecting",
   );
   const [status, setStatus] = useState<SecurityStatus | null>(null);
+  const [audit, setAudit] = useState<AuditEvent[]>([]);
   const [seedPending, startSeed] = useTransition();
   const [beatPending, startBeat] = useTransition();
   const [seedMessage, setSeedMessage] = useState<string | null>(null);
@@ -20,8 +21,13 @@ export function LabBench() {
   const [badSigProbe, setBadSigProbe] = useState<ProbeResult | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
 
+  function refreshAudit() {
+    api.audit(24).then(setAudit).catch(() => setAudit([]));
+  }
+
   useEffect(() => {
     api.securityStatus().then(setStatus).catch(() => setStatus(null));
+    refreshAudit();
   }, []);
 
   useEffect(() => {
@@ -60,6 +66,16 @@ export function LabBench() {
       label: "Card numbers stay vaulted",
       detail: "Only demo last4 - no raw PAN storage",
     },
+    {
+      ok: status?.demo_api_key_configured ?? false,
+      label: "Demo mutate routes locked",
+      detail: "X-Demo-Key required for /simulate and /demo",
+    },
+    {
+      ok: status?.audit_log_enabled ?? true,
+      label: "Append-only audit trail",
+      detail: "Rejects and routes survive pitch resets",
+    },
   ];
 
   const allOk = checks.every((c) => c.ok);
@@ -83,6 +99,7 @@ export function LabBench() {
       try {
         await api.runDemoScript(true);
         setSeedMessage("Pitch history seeded.");
+        refreshAudit();
       } catch (e) {
         setSeedError(e instanceof Error ? e.message : "Reset failed");
       }
@@ -99,6 +116,7 @@ export function LabBench() {
       setUnsignedProbe(unsigned);
       setBadSigProbe(bad);
       if (next) setStatus(next);
+      refreshAudit();
     });
   }
 
@@ -163,7 +181,7 @@ export function LabBench() {
               {beatPending ? "Proving…" : "Run security beat"}
             </button>
             <p className="text-sm text-muted">
-              Sends unsigned + bad-signature webhooks. Expect rejects.
+              Sends unsigned + bad-signature webhooks. Expect rejects in the audit trail.
             </p>
           </div>
 
@@ -206,6 +224,63 @@ export function LabBench() {
                 , tap once, then replay to prove no double-route.
               </p>
             </div>
+          )}
+        </section>
+
+        <section className="animate-rise space-y-3 [animation-delay:120ms]">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="font-[family-name:var(--font-display)] text-xl">
+              Audit trail
+            </h2>
+            <button
+              type="button"
+              onClick={refreshAudit}
+              className="text-sm text-accent transition hover:brightness-110"
+            >
+              Refresh
+            </button>
+          </div>
+          <p className="text-sm text-muted">
+            Append-only. Pitch resets wipe spend, not this log.
+          </p>
+          {audit.length === 0 ? (
+            <p className="text-sm text-muted">No events yet - run the security beat.</p>
+          ) : (
+            <ul className="space-y-2">
+              {audit.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex items-start justify-between gap-3 border-b border-line/50 pb-2 text-sm last:border-0"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium">
+                      <span
+                        className={
+                          row.outcome === "rejected" || row.outcome === "declined"
+                            ? "text-warn"
+                            : row.outcome === "idempotent"
+                              ? "text-muted"
+                              : "text-accent"
+                        }
+                      >
+                        {row.outcome.toUpperCase()}
+                      </span>
+                      <span className="ml-2 text-foreground">{row.action}</span>
+                    </p>
+                    <p className="mt-0.5 truncate text-muted">
+                      {row.detail ||
+                        [row.merchant_name, row.selected_card_name]
+                          .filter(Boolean)
+                          .join(" → ") ||
+                        "—"}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-muted">
+                    {row.http_status ? `HTTP ${row.http_status}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
         </section>
 
@@ -269,32 +344,66 @@ export function LabBench() {
             <div className="mt-5 space-y-4">
               <ul className="space-y-2 text-sm text-muted">
                 <Detail
-                  ok={status?.stripe_webhook_secret_configured ?? false}
+                  ok={status?.stripe_webhook_secret_configured === true}
                   label="Webhook secret"
                   detail={
-                    status?.stripe_webhook_secret_configured
-                      ? "STRIPE_WEBHOOK_SECRET loaded"
-                      : "Set whsec from stripe listen"
+                    !status
+                      ? "API unreachable - restart uvicorn"
+                      : status.stripe_webhook_secret_configured
+                        ? "STRIPE_WEBHOOK_SECRET loaded"
+                        : "Set whsec from stripe listen"
                   }
                 />
                 <Detail
                   ok={live === "live"}
                   label="Live stream"
-                  detail={live === "live" ? "SSE connected" : "Waiting for /events"}
-                />
-                <Detail
-                  ok={status?.stripe_api_key_configured ?? false}
-                  label="Stripe API key"
                   detail={
-                    status?.stripe_api_key_configured
-                      ? "Test key present"
-                      : "Optional for Issuing approve"
+                    live === "live"
+                      ? "SSE connected"
+                      : live === "offline"
+                        ? "API offline - restart uvicorn"
+                        : "Waiting for /events"
                   }
                 />
                 <Detail
-                  ok={status?.idempotent_authorizations ?? true}
+                  ok={status?.stripe_api_key_configured === true}
+                  label="Stripe API key"
+                  detail={
+                    !status
+                      ? "API unreachable - restart uvicorn"
+                      : status.stripe_api_key_configured
+                        ? "Test key present"
+                        : "Optional for Issuing approve"
+                  }
+                />
+                <Detail
+                  ok={status?.idempotent_authorizations === true}
                   label="Idempotent auths"
-                  detail="Same authorization_id cannot double-route"
+                  detail={
+                    !status
+                      ? "API unreachable - restart uvicorn"
+                      : "Same authorization_id cannot double-route"
+                  }
+                />
+                <Detail
+                  ok={status?.demo_api_key_configured === true}
+                  label="Demo API key"
+                  detail={
+                    !status
+                      ? "API unreachable - restart uvicorn"
+                      : status.demo_api_key_configured
+                        ? "X-Demo-Key required on mutate routes"
+                        : "Set DEMO_API_KEY in .env"
+                  }
+                />
+                <Detail
+                  ok={status?.rate_limit_enabled === true}
+                  label="Rate limit"
+                  detail={
+                    !status
+                      ? "API unreachable - restart uvicorn"
+                      : "Per-IP limit on simulate / demo / webhooks"
+                  }
                 />
               </ul>
 

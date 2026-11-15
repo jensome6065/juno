@@ -10,12 +10,15 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 from typing import Any, Optional
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 
 from app.db import SessionLocal, get_engine, init_db, reset_engine
 from app.engine.caps import apply_purchase, cap_status, caps_for_scoring
 from app.models.tables import Base, CapLedgerRow, PassStateRow, TransactionRow
+
+# Tables wiped by demo reset. Audit trail is intentionally excluded.
+_DEMO_RESET_TABLES = (TransactionRow, CapLedgerRow, PassStateRow)
 
 FORBIDDEN_PAN_KEYS = frozenset(
     {
@@ -269,10 +272,19 @@ def list_transactions(limit: int = 50) -> list[dict[str, Any]]:
         return [_tx_to_dict(row) for row in rows]
 
 
-def reset() -> None:
-    """Wipe durable state (demo reset / tests)."""
+def reset(*, keep_audit: bool = False) -> None:
+    """Wipe durable state (demo reset / tests).
+
+    Demo pitch reseeds pass keep_audit=True so webhook rejects stay visible.
+    """
     init_db()
     engine = get_engine()
+    if keep_audit:
+        with SessionLocal() as session:
+            for model in _DEMO_RESET_TABLES:
+                session.execute(delete(model))
+            session.commit()
+        return
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
 

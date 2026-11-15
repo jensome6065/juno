@@ -92,3 +92,22 @@ class PassStateRow(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
     )
+
+
+class AuditEventRow(Base):
+    """Append-only security trail. Survives demo resets that wipe spend state."""
+
+    __tablename__ = "audit_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    action: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
+    detail: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    source: Mapped[Optional[str]] = mapped_column(String(64))
+    authorization_id: Mapped[Optional[str]] = mapped_column(String(128), index=True)
+    http_status: Mapped[Optional[int]] = mapped_column(Integer)
+    merchant_name: Mapped[Optional[str]] = mapped_column(String(255))
+    selected_card_name: Mapped[Optional[str]] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, index=True
+    )

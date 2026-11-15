@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.engine.merchant_intel import resolve_category
 from app.schemas import (
@@ -8,6 +8,7 @@ from app.schemas import (
     SimulateRequest,
     SimulateResponse,
 )
+from app.security.demo_auth import require_demo_key
 from app.services import walletwallet
 from app.services.decisions import DecisionError, route_purchase
 from app.services.rules import get_merchant, load_merchants, merchant_typical_amount
@@ -30,7 +31,7 @@ def list_merchants() -> list[MerchantOut]:
     ]
 
 
-@router.post("/infer", response_model=InferResponse)
+@router.post("/infer", response_model=InferResponse, dependencies=[Depends(require_demo_key)])
 def infer_category(body: InferRequest) -> InferResponse:
     """Preview how the DE maps a free-text merchant + MCC → reward category."""
     hit = resolve_category(body.mcc, body.merchant_name)
@@ -45,7 +46,7 @@ def infer_category(body: InferRequest) -> InferResponse:
     )
 
 
-@router.post("/simulate", response_model=SimulateResponse)
+@router.post("/simulate", response_model=SimulateResponse, dependencies=[Depends(require_demo_key)])
 def simulate(body: SimulateRequest) -> SimulateResponse:
     merchant_id = None
     merchant_name: str

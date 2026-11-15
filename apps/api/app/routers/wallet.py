@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.schemas import WalletPassOut, WalletStatusOut
+from app.security.demo_auth import require_demo_key
 from app.services import walletwallet
 
 router = APIRouter(prefix="/wallet", tags=["wallet"])
@@ -17,7 +18,7 @@ def wallet_status() -> WalletStatusOut:
     )
 
 
-@router.post("/pass", response_model=WalletPassOut)
+@router.post("/pass", response_model=WalletPassOut, dependencies=[Depends(require_demo_key)])
 def create_wallet_pass() -> WalletPassOut:
     if not walletwallet.configured():
         raise HTTPException(

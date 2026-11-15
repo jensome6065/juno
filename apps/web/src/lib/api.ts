@@ -1,10 +1,16 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const DEMO_API_KEY = process.env.NEXT_PUBLIC_DEMO_API_KEY ?? "";
+
+function demoHeaders(): HeadersInit {
+  return DEMO_API_KEY ? { "X-Demo-Key": DEMO_API_KEY } : {};
+}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...demoHeaders(),
       ...(init?.headers ?? {}),
     },
     cache: "no-store",
@@ -103,11 +109,27 @@ export type SimulateResponse = {
 export type SecurityStatus = {
   stripe_webhook_secret_configured: boolean;
   stripe_api_key_configured: boolean;
+  demo_api_key_configured: boolean;
   signature_required: boolean;
   stores_raw_pan: boolean;
   idempotent_authorizations: boolean;
   realtime_decision_stream: boolean;
+  audit_log_enabled: boolean;
+  rate_limit_enabled: boolean;
   webhook_path: string;
+};
+
+export type AuditEvent = {
+  id: number;
+  action: string;
+  outcome: string;
+  detail: string;
+  source?: string | null;
+  authorization_id?: string | null;
+  http_status?: number | null;
+  merchant_name?: string | null;
+  selected_card_name?: string | null;
+  created_at?: string | null;
 };
 
 export type CapBucket = {
@@ -214,6 +236,7 @@ export const api = {
       method: "POST",
     }),
   securityStatus: () => request<SecurityStatus>("/security/status"),
+  audit: (limit = 40) => request<AuditEvent[]>(`/security/audit?limit=${limit}`),
   resetDemo: () =>
     request<{ ok: boolean; wallet_updated: boolean }>("/demo/reset", {
       method: "POST",

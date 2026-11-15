@@ -51,7 +51,7 @@ With Postgres, the API, and the web app running (see Setup above), open [http://
 
 The dashboard lists the linked rewards cards behind Juno and any routed purchases. From there, open **Terminal** to simulate a merchant tap: use the **pitch chips** (Dining, Gas / rotating, Cap burn, Override, …) or pick from 20 common places, then **Hold phone to reader**. You’ll get an approval with the winning card, why it won, a score breakdown against the other cards, and routing latency.
 
-Keep the dashboard open in another tab while you tap - history and **bonus cap meters** update live over SSE when a decision lands. Use **Reset & seed pitch** on the dashboard to wipe transactions, refill a varied history, and reset caps. On the dashboard, the **Security** section shows whether the Stripe webhook secret is loaded and other controls; **Probe webhook rejects** sends unsigned and bad-signature requests to `/webhooks/stripe` so you can confirm they fail. Back on the terminal, **Replay same auth** reuses the authorization id - the second call is idempotent and should not create a duplicate route.
+Keep the dashboard open in another tab while you tap - history and **bonus cap meters** update live over SSE when a decision lands. Use **Reset & seed pitch** on the dashboard to wipe transactions, refill a varied history, and reset caps. Open **Lab** for the security beat: unsigned / bad-signature webhooks are rejected and written to an append-only **audit trail** (pitch resets wipe spend, not the log). Mutate routes (`/simulate`, `/demo`) require `X-Demo-Key`. On Terminal, **Replay same auth** reuses the authorization id - the second call is idempotent and should not create a duplicate route.
 
 Different merchants exercise different rules. Try **Starbucks at Whole Foods** (Override chip) to see a merchant override (MCC looks like grocery, scored as dining). Gas fills Freedom Flex rotating; after that cap is full, groceries usually flip to Amex Gold.
 
@@ -63,10 +63,15 @@ For UX wiring and judge-proof demos (no dropdown fumbling):
 # Current-period bonus caps (spent / limit / remaining / period)
 curl -s http://127.0.0.1:8000/caps | python3 -m json.tool
 
+# Mutate routes need X-Demo-Key (same value as DEMO_API_KEY in .env)
 # 7-beat pitch: Starbucks → Shell (burn Flex) → Whole Foods → CVS → Delta → Best Buy → Starbucks at Whole Foods
 curl -s -X POST http://127.0.0.1:8000/demo/script \
   -H 'Content-Type: application/json' \
+  -H 'X-Demo-Key: juno-demo-local' \
   -d '{"reset": true}' | python3 -m json.tool
+
+# Security audit trail (rejects + routes)
+curl -s http://127.0.0.1:8000/security/audit | python3 -m json.tool
 ```
 
 Expected winners: Amex Gold → Freedom Flex → Amex Gold → Freedom Flex → Amex Gold → Double Cash → Amex Gold (dining override).  

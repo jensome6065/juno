@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from stripe import Webhook
 from stripe.issuing import Authorization
 
+from app.audit import append_audit
 from app.services.decisions import DecisionError, route_purchase
 from app.services import walletwallet
 
@@ -39,23 +40,58 @@ async def stripe_webhook(
 ) -> dict[str, Any]:
     secret = os.getenv("STRIPE_WEBHOOK_SECRET", "").strip()
     if not secret:
+        append_audit(
+            action="webhook.rejected",
+            outcome="rejected",
+            detail="STRIPE_WEBHOOK_SECRET is not configured",
+            source="stripe_webhook",
+            http_status=503,
+        )
         raise HTTPException(
             status_code=503,
             detail="STRIPE_WEBHOOK_SECRET is not configured",
         )
     if not stripe_signature:
+        append_audit(
+            action="webhook.rejected",
+            outcome="rejected",
+            detail="Missing Stripe-Signature header",
+            source="stripe_webhook",
+            http_status=400,
+        )
         raise HTTPException(status_code=400, detail="Missing Stripe-Signature header")
 
     payload = await request.body()
     try:
         event = Webhook.construct_event(payload, stripe_signature, secret)
     except ValueError as exc:
+        append_audit(
+            action="webhook.rejected",
+            outcome="rejected",
+            detail="Invalid payload",
+            source="stripe_webhook",
+            http_status=400,
+        )
         raise HTTPException(status_code=400, detail="Invalid payload") from exc
     except stripe.SignatureVerificationError as exc:
+        append_audit(
+            action="webhook.rejected",
+            outcome="rejected",
+            detail="Invalid signature",
+            source="stripe_webhook",
+            http_status=400,
+        )
         raise HTTPException(status_code=400, detail="Invalid signature") from exc
 
     event_type = event["type"] if isinstance(event, dict) else event.type
     if event_type != "issuing_authorization.request":
+        append_audit(
+            action="webhook.ignored",
+            outcome="ignored",
+            detail=f"Event type {event_type}",
+            source="stripe_webhook",
+            http_status=200,
+        )
         return {
             "received": True,
             "ignored": event_type,
@@ -80,6 +116,15 @@ async def stripe_webhook(
         )
     except DecisionError as exc:
         _decline_authorization(authorization_id)
+        append_audit(
+            action="webhook.declined",
+            outcome="declined",
+            detail=str(exc),
+            source="stripe_webhook",
+            authorization_id=authorization_id or None,
+            merchant_name=merchant_name,
+            http_status=400,
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     approved = _approve_authorization(authorization_id)
@@ -88,6 +133,17 @@ async def stripe_webhook(
         walletwallet.update_pass()
     except Exception:  # noqa: BLE001
         pass
+
+    append_audit(
+        action="webhook.accepted",
+        outcome="accepted",
+        detail="Signature verified",
+        source="stripe_webhook",
+        authorization_id=authorization_id or None,
+        merchant_name=merchant_name,
+        selected_card_name=decision["transaction"].selected_card_name,
+        http_status=200,
+    )
 
     return {
         "received": True,

@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import init_db
 from app.routers import caps, cards, demo, events, security, simulate, transactions, wallet, webhooks
+from app.security.rate_limit import RateLimitMiddleware
 
 ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(ROOT / ".env")
@@ -26,12 +27,13 @@ origins = [
     if o.strip()
 ]
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Stripe-Signature", "X-Demo-Key"],
 )
 
 app.include_router(cards.router)

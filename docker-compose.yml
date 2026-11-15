@@ -3,10 +3,12 @@ services:
     image: postgres:16
     environment:
       POSTGRES_USER: juno
-      POSTGRES_PASSWORD: juno
+      # Only applied on first volume create. Override via .env POSTGRES_PASSWORD.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-juno}
       POSTGRES_DB: juno
+    # Bind loopback only - not exposed on the venue LAN.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - juno_pg:/var/lib/postgresql/data
     healthcheck:

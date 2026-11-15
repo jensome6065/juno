@@ -5,18 +5,24 @@ from __future__ import annotations
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.audit import append_audit
 from app.engine.score import _cap_limit
 from app.events import publish
 from app.schemas import CapBucketOut, CapStatusResponse, RouteScore, TransactionOut
+from app.security.demo_auth import require_demo_key
 from app.services import walletwallet
 from app.services.decisions import DecisionError, route_purchase
 from app.services.rules import get_card, get_merchant, load_cards, merchant_typical_amount
 from app.store import get_cap_status, reset
 
-router = APIRouter(prefix="/demo", tags=["demo"])
+router = APIRouter(
+    prefix="/demo",
+    tags=["demo"],
+    dependencies=[Depends(require_demo_key)],
+)
 
 # Fixed auth ids so re-running the script is idempotent within a session
 # after reset, and curl docs stay copy-pasteable.
@@ -105,7 +111,7 @@ class DemoScriptResponse(BaseModel):
 @router.post("/reset", response_model=ResetResponse)
 def reset_demo() -> ResetResponse:
     """Clear transactions, cap ledger, and pass state for a clean demo."""
-    reset()
+    reset(keep_audit=True)
     wallet_updated = False
     try:
         if walletwallet.configured() and walletwallet.update_pass():
@@ -113,6 +119,12 @@ def reset_demo() -> ResetResponse:
     except Exception:  # noqa: BLE001 - reset still succeeds if WalletWallet is down
         wallet_updated = False
 
+    append_audit(
+        action="demo.reset",
+        outcome="ok",
+        detail="Spend state wiped; audit trail kept",
+        source="demo",
+    )
     publish("demo.reset", {})
     return ResetResponse(ok=True, wallet_updated=wallet_updated)
 
@@ -126,8 +138,14 @@ def run_demo_script(body: Optional[DemoScriptRequest] = None) -> DemoScriptRespo
     body = body or DemoScriptRequest()
     did_reset = False
     if body.reset:
-        reset()
+        reset(keep_audit=True)
         did_reset = True
+        append_audit(
+            action="demo.reset",
+            outcome="ok",
+            detail="Pitch seed reset; audit trail kept",
+            source="demo_script",
+        )
         publish("demo.reset", {})
 
     suffix = f"_{body.run_id}" if body.run_id else ""

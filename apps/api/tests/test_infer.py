@@ -1,11 +1,14 @@
 """Free-text merchant inference + simulate without catalog id."""
 
+import os
 import unittest
 
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.store import configure_test_db, reset
+
+DEMO_HEADERS = {"X-Demo-Key": "test-demo-key"}
 
 
 class InferApiTest(unittest.TestCase):
@@ -16,11 +19,20 @@ class InferApiTest(unittest.TestCase):
 
     def setUp(self):
         reset()
+        self._old_key = os.environ.get("DEMO_API_KEY")
+        os.environ["DEMO_API_KEY"] = "test-demo-key"
+
+    def tearDown(self):
+        if self._old_key is None:
+            os.environ.pop("DEMO_API_KEY", None)
+        else:
+            os.environ["DEMO_API_KEY"] = self._old_key
 
     def test_infer_override_coffee_in_grocery(self):
         res = self.client.post(
             "/infer",
             json={"merchant_name": "Starbucks Reserve", "mcc": "5411"},
+            headers=DEMO_HEADERS,
         )
         self.assertEqual(res.status_code, 200, res.text)
         body = res.json()
@@ -32,6 +44,7 @@ class InferApiTest(unittest.TestCase):
         res = self.client.post(
             "/infer",
             json={"merchant_name": "Random Fuel Mart", "mcc": "5542"},
+            headers=DEMO_HEADERS,
         )
         self.assertEqual(res.status_code, 200)
         body = res.json()
@@ -47,6 +60,7 @@ class InferApiTest(unittest.TestCase):
                 "amount": 18.5,
                 "authorization_id": "free_text_auth_1",
             },
+            headers=DEMO_HEADERS,
         )
         self.assertEqual(res.status_code, 200, res.text)
         body = res.json()
@@ -58,3 +72,4 @@ class InferApiTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

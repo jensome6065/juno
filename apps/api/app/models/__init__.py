@@ -1,3 +1,15 @@
-from app.models.tables import Base, CapLedgerRow, PassStateRow, TransactionRow
+from app.models.tables import (
+    AuditEventRow,
+    Base,
+    CapLedgerRow,
+    PassStateRow,
+    TransactionRow,
+)
 
-__all__ = ["Base", "CapLedgerRow", "PassStateRow", "TransactionRow"]
+__all__ = [
+    "AuditEventRow",
+    "Base",
+    "CapLedgerRow",
+    "PassStateRow",
+    "TransactionRow",
+]

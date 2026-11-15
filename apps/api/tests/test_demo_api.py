@@ -1,11 +1,14 @@
 """Cap status + varied demo script."""
 
+import os
 import unittest
 
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.store import configure_test_db, reset
+
+DEMO_HEADERS = {"X-Demo-Key": "test-demo-key"}
 
 
 class DemoApiTest(unittest.TestCase):
@@ -16,6 +19,14 @@ class DemoApiTest(unittest.TestCase):
 
     def setUp(self):
         reset()
+        self._old_key = os.environ.get("DEMO_API_KEY")
+        os.environ["DEMO_API_KEY"] = "test-demo-key"
+
+    def tearDown(self):
+        if self._old_key is None:
+            os.environ.pop("DEMO_API_KEY", None)
+        else:
+            os.environ["DEMO_API_KEY"] = self._old_key
 
     def test_caps_empty_meters(self):
         res = self.client.get("/caps")
@@ -33,7 +44,11 @@ class DemoApiTest(unittest.TestCase):
         self.assertEqual(gold["period"], "calendar_year")
 
     def test_demo_script_varied_merchants(self):
-        res = self.client.post("/demo/script", json={"reset": True})
+        res = self.client.post(
+            "/demo/script",
+            json={"reset": True},
+            headers=DEMO_HEADERS,
+        )
         self.assertEqual(res.status_code, 200, res.text)
         body = res.json()
         self.assertTrue(body["ok"], body)
@@ -63,8 +78,16 @@ class DemoApiTest(unittest.TestCase):
         self.assertEqual(flex["progress"], 1.0)
 
     def test_demo_script_is_idempotent_after_reset(self):
-        first = self.client.post("/demo/script", json={"reset": True}).json()
-        second = self.client.post("/demo/script", json={"reset": True}).json()
+        first = self.client.post(
+            "/demo/script",
+            json={"reset": True},
+            headers=DEMO_HEADERS,
+        ).json()
+        second = self.client.post(
+            "/demo/script",
+            json={"reset": True},
+            headers=DEMO_HEADERS,
+        ).json()
         self.assertTrue(first["ok"])
         self.assertTrue(second["ok"])
         self.assertEqual(
@@ -77,3 +100,4 @@ class DemoApiTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

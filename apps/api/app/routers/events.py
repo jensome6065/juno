@@ -21,10 +21,13 @@ async def stream_events(request: Request) -> StreamingResponse:
                 if await request.is_disconnected():
                     break
                 try:
-                    event = await asyncio.to_thread(q.get, True, 1.0)
+                    # Short timeout so --reload can shut down instead of hanging
+                    # on open EventSource connections.
+                    event = await asyncio.to_thread(q.get, True, 0.5)
                     yield f"data: {json.dumps(event, default=str)}\n\n"
                 except queue.Empty:
                     yield ": keepalive\n\n"
+                    await asyncio.sleep(0)
         finally:
             unsubscribe(q)
 

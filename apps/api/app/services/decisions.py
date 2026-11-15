@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from typing import Any, Optional
 
+from app.audit import append_audit
 from app.engine.router import pick_best_card
 from app.events import publish
 from app.schemas import DecisionIntel, RouteScore, TransactionOut
@@ -47,6 +48,15 @@ def route_purchase(
                 merchant_name=merchant_name,
                 category_hint=category_hint,
                 carry_months=carry_months,
+            )
+            append_audit(
+                action="decision.replay",
+                outcome="idempotent",
+                detail="Same authorization_id - no double route",
+                source=source,
+                authorization_id=authorization_id,
+                merchant_name=merchant_name,
+                selected_card_name=existing.get("selected_card_name"),
             )
             return {
                 "transaction": _transaction_out(existing),
@@ -110,6 +120,15 @@ def route_purchase(
     }
 
     if not replay:
+        append_audit(
+            action="decision.routed",
+            outcome="routed",
+            detail=f"{merchant_name} → {best['card_name']}",
+            source=source,
+            authorization_id=authorization_id,
+            merchant_name=merchant_name,
+            selected_card_name=best["card_name"],
+        )
         publish(
             "decision.created",
             {
@@ -119,6 +138,16 @@ def route_purchase(
                 "authorization_id": authorization_id,
                 "source": source,
             },
+        )
+    else:
+        append_audit(
+            action="decision.replay",
+            outcome="idempotent",
+            detail="Integrity race - same authorization_id",
+            source=source,
+            authorization_id=authorization_id,
+            merchant_name=merchant_name,
+            selected_card_name=tx.get("selected_card_name"),
         )
     return decision
 
