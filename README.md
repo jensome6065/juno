@@ -49,7 +49,7 @@ npm run dev
 
 With Postgres, the API, and the web app running (see Setup above), open [http://localhost:3000](http://localhost:3000).
 
-The dashboard lists the linked rewards cards behind Juno and any routed purchases. From there, open **Terminal** to simulate a merchant tap: pick a merchant (coffee, groceries, gas, etc.), then **Hold phone to reader**. You’ll get an approval with the winning card, why it won, a score breakdown against the other cards, and routing latency.
+The dashboard lists the linked rewards cards behind Juno and any routed purchases. From there, open **Terminal** to simulate a merchant tap: pick from 20 common places (Starbucks, Whole Foods, Shell, Amazon, …), then **Hold phone to reader**. You’ll get an approval with the winning card, why it won, a score breakdown against the other cards, and routing latency.
 
 Keep the dashboard open in another tab while you tap — history updates live over SSE when a decision lands. Use **Reset demo** on the dashboard to wipe transactions and cap history before the next run. On the dashboard, the **Security** section shows whether the Stripe webhook secret is loaded and other controls; **Probe webhook rejects** sends unsigned and bad-signature requests to `/webhooks/stripe` so you can confirm they fail. Back on the terminal, **Replay same auth** reuses the authorization id — the second call is idempotent and should not create a duplicate route.
 
@@ -63,7 +63,7 @@ For UX wiring and judge-proof demos (no dropdown fumbling):
 # Current-period bonus caps (spent / limit / remaining / period)
 curl -s http://127.0.0.1:8000/caps | python3 -m json.tool
 
-# 3-beat story: coffee → burn Flex rotating → coffee-in-grocery
+# 3-beat story: Starbucks → burn Flex rotating at Shell → Starbucks at Whole Foods
 curl -s -X POST http://127.0.0.1:8000/demo/script \
   -H 'Content-Type: application/json' \
   -d '{"reset": true}' | python3 -m json.tool

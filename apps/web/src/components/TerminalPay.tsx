@@ -7,7 +7,12 @@ import {
   StartupHints,
   classifyApiError,
 } from "@/components/StartupHints";
-import { api, type Merchant, type SimulateResponse } from "@/lib/api";
+import {
+  api,
+  type InferResponse,
+  type Merchant,
+  type SimulateResponse,
+} from "@/lib/api";
 import { money } from "@/lib/format";
 import { playNfcTapSound, unlockNfcAudio } from "@/lib/nfcSound";
 
@@ -15,7 +20,8 @@ type Phase = "idle" | "waiting" | "reading" | "approved" | "error";
 
 export function TerminalPay() {
   const [merchants, setMerchants] = useState<Merchant[]>([]);
-  const [selectedId, setSelectedId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState("");
+  const [infer, setInfer] = useState<InferResponse | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [result, setResult] = useState<SimulateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +43,27 @@ export function TerminalPay() {
 
   const merchant = merchants.find((m) => m.id === selectedId) ?? null;
 
+  useEffect(() => {
+    if (!merchant) {
+      setInfer(null);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      api
+        .infer(merchant.name, merchant.mcc)
+        .then(setInfer)
+        .catch(() => setInfer(null));
+    }, 120);
+    return () => window.clearTimeout(handle);
+  }, [merchant]);
+
+  function resetOutcome() {
+    setPhase("idle");
+    setResult(null);
+    setError(null);
+    setAuthId(null);
+  }
+
   function startTap(replay = false) {
     if (!merchant || pending) return;
     setError(null);
@@ -46,7 +73,6 @@ export function TerminalPay() {
     const nextAuthId =
       replay && authId ? authId : `demo_auth_${Date.now().toString(36)}`;
 
-    // Unlock audio on the user gesture so the delayed NFC beep can play.
     void unlockNfcAudio();
     const nfcTimer = window.setTimeout(() => {
       void playNfcTapSound();
@@ -57,6 +83,7 @@ export function TerminalPay() {
         await wait(700);
         setPhase("reading");
         await wait(900);
+        // Catalog pick still goes through DE inference (name + MCC).
         const res = await api.simulate(merchant.id, undefined, nextAuthId);
         setAuthId(res.authorization_id ?? nextAuthId);
         setResult(res);
@@ -69,12 +96,7 @@ export function TerminalPay() {
     });
   }
 
-  function reset() {
-    setPhase("idle");
-    setResult(null);
-    setError(null);
-    setAuthId(null);
-  }
+  const busy = phase === "waiting" || phase === "reading";
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-[#070b09]">
@@ -93,7 +115,7 @@ export function TerminalPay() {
       <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-10">
         <div className="animate-rise overflow-hidden rounded-[32px] border border-line bg-[#101814] shadow-[0_40px_100px_rgba(0,0,0,0.55)]">
           <div className="border-b border-line px-6 py-4 text-xs tracking-[0.25em] text-muted uppercase">
-            Merchant reader · demo
+            Merchant reader · top places
           </div>
 
           <div className="space-y-8 px-6 py-10 text-center md:px-10">
@@ -102,18 +124,37 @@ export function TerminalPay() {
               <select
                 className="mt-2 w-full appearance-none rounded-2xl border border-line bg-[#0c1210] px-4 py-3 text-center text-lg outline-none focus:border-accent"
                 value={selectedId}
-                disabled={phase === "waiting" || phase === "reading"}
+                disabled={busy || merchants.length === 0}
                 onChange={(e) => {
                   setSelectedId(e.target.value);
-                  reset();
+                  resetOutcome();
                 }}
               >
-                {merchants.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
+                {merchants.length === 0 ? (
+                  <option value="">Loading merchants…</option>
+                ) : (
+                  merchants.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))
+                )}
               </select>
+              {infer ? (
+                <p className="mt-2 text-sm text-muted">
+                  Inferred{" "}
+                  <span className="text-accent">{infer.category}</span>
+                  {" · "}
+                  {infer.source}
+                  {infer.source === "override" && infer.mcc_category
+                    ? ` (MCC looked like ${infer.mcc_category})`
+                    : null}
+                </p>
+              ) : merchant ? (
+                <p className="mt-2 text-sm text-muted">
+                  MCC {merchant.mcc}
+                </p>
+              ) : null}
             </div>
 
             <div>
@@ -121,11 +162,6 @@ export function TerminalPay() {
               <p className="mt-2 font-[family-name:var(--font-display)] text-6xl tracking-tight md:text-7xl">
                 {merchant ? money(merchant.typical_amount) : "—"}
               </p>
-              {merchant ? (
-                <p className="mt-2 text-sm text-muted">
-                  MCC {merchant.mcc} · {merchant.category}
-                </p>
-              ) : null}
             </div>
 
             <TapStage phase={phase} />
@@ -142,24 +178,11 @@ export function TerminalPay() {
                         routed in {formatLatency(result.latency_ms)}
                       </span>
                     ) : null}
-                    <span className="rounded-full border border-accent/40 px-2.5 py-0.5 text-xs text-accent">
-                      auth-bound
-                    </span>
-                    {result.idempotent_replay ? (
-                      <span className="rounded-full border border-warn/40 px-2.5 py-0.5 text-xs text-warn">
-                        idempotent
-                      </span>
-                    ) : null}
                   </div>
                   <p className="font-[family-name:var(--font-display)] text-2xl">
                     {result.transaction.selected_card_name}
                   </p>
                   <p className="text-sm text-muted">{result.transaction.reason}</p>
-                  {result.wallet_updated ? (
-                    <p className="text-sm text-muted">
-                      Apple Wallet pass updated with this route.
-                    </p>
-                  ) : null}
                 </div>
 
                 <SavingsCompare
@@ -194,7 +217,7 @@ export function TerminalPay() {
                 <button
                   type="button"
                   disabled={!merchant || pending}
-                  onClick={startTap}
+                  onClick={() => startTap()}
                   className="rounded-full bg-accent px-8 py-4 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-50"
                 >
                   Hold phone to reader
@@ -212,7 +235,7 @@ export function TerminalPay() {
                   </button>
                   <button
                     type="button"
-                    onClick={reset}
+                    onClick={resetOutcome}
                     className="rounded-full border border-line px-8 py-4 text-sm transition hover:border-accent"
                   >
                     New tap
@@ -325,15 +348,6 @@ function ScoreBreakdown({
                   {winner && !blocked ? (
                     <span className="ml-2 text-xs text-accent">selected</span>
                   ) : null}
-                  {blocked ? (
-                    <span className="ml-2 text-xs text-warn">
-                      blocked
-                      {score.constraint ? `:${score.constraint}` : ""}
-                    </span>
-                  ) : null}
-                  {score.cap_split ? (
-                    <span className="ml-2 text-xs text-accent">cap split</span>
-                  ) : null}
                 </p>
                 <p className="mt-1 text-xs text-muted">{score.reason}</p>
               </div>
@@ -341,11 +355,6 @@ function ScoreBreakdown({
                 <p className={winner && !blocked ? "text-accent" : ""}>
                   {blocked ? "—" : money(score.value)}
                 </p>
-                {!blocked ? (
-                  <p className="mt-1 text-xs text-muted">
-                    {Number(score.rate_used)}x
-                  </p>
-                ) : null}
               </div>
             </li>
           );

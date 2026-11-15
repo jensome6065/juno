@@ -28,7 +28,7 @@ class MerchantIntelTest(unittest.TestCase):
         self.assertGreaterEqual(hit["confidence"], 0.9)
 
     def test_coffee_in_grocery_routes_to_amex_gold(self):
-        merchant = self.merchants["coffee_in_grocery"]
+        merchant = self.merchants["starbucks_whole_foods"]
         # MCC alone would pick Freedom Flex (grocery rotating 5x).
         by_mcc = select_card(self.cards, merchant["amount_cents"], merchant["mcc"])
         self.assertEqual(by_mcc["category"], "groceries")

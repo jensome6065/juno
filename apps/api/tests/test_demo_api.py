@@ -1,4 +1,4 @@
-"""Cap status + 3-beat demo script."""
+"""Cap status + varied demo script."""
 
 import unittest
 
@@ -32,26 +32,30 @@ class DemoApiTest(unittest.TestCase):
         self.assertEqual(gold["limit_cents"], 2500000)
         self.assertEqual(gold["period"], "calendar_year")
 
-    def test_demo_script_three_beats(self):
+    def test_demo_script_varied_merchants(self):
         res = self.client.post("/demo/script", json={"reset": True})
         self.assertEqual(res.status_code, 200, res.text)
         body = res.json()
         self.assertTrue(body["ok"], body)
         self.assertTrue(body["reset"])
-        self.assertEqual(len(body["steps"]), 3)
+        self.assertGreaterEqual(len(body["steps"]), 5)
 
-        coffee, gas, override = body["steps"]
-        self.assertEqual(coffee["merchant_id"], "coffee")
-        self.assertEqual(coffee["transaction"]["selected_card_id"], "amex_gold")
-        self.assertTrue(coffee["ok"])
+        merchants = [s["merchant_id"] for s in body["steps"]]
+        self.assertEqual(len(merchants), len(set(merchants)), merchants)
+        self.assertIn("starbucks", merchants)
+        self.assertIn("shell", merchants)
+        self.assertIn("whole_foods", merchants)
+        self.assertIn("best_buy", merchants)
+        self.assertIn("starbucks_whole_foods", merchants)
 
-        self.assertEqual(gas["merchant_id"], "gas")
-        self.assertEqual(gas["transaction"]["selected_card_id"], "freedom_flex")
-        self.assertTrue(gas["ok"])
-
-        self.assertEqual(override["merchant_id"], "coffee_in_grocery")
-        self.assertEqual(override["transaction"]["selected_card_id"], "amex_gold")
-        self.assertTrue(override["ok"])
+        by_name = {s["name"]: s for s in body["steps"]}
+        self.assertEqual(by_name["starbucks"]["transaction"]["selected_card_id"], "amex_gold")
+        self.assertEqual(by_name["gas_burn"]["transaction"]["selected_card_id"], "freedom_flex")
+        self.assertEqual(by_name["whole_foods"]["transaction"]["selected_card_id"], "amex_gold")
+        self.assertEqual(by_name["best_buy"]["transaction"]["selected_card_id"], "double_cash")
+        self.assertEqual(
+            by_name["starbucks_whole_foods"]["transaction"]["selected_card_id"], "amex_gold"
+        )
 
         flex = body["caps"]["caps"]["freedom_flex"]["rotating"]
         self.assertEqual(flex["spent_cents"], 150000)
@@ -67,9 +71,8 @@ class DemoApiTest(unittest.TestCase):
             [s["authorization_id"] for s in first["steps"]],
             [s["authorization_id"] for s in second["steps"]],
         )
-        # Fresh reset → still three txs, not six.
         txs = self.client.get("/transactions").json()
-        self.assertEqual(len(txs), 3)
+        self.assertEqual(len(txs), len(first["steps"]))
 
 
 if __name__ == "__main__":

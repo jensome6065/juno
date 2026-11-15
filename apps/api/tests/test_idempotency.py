@@ -26,7 +26,7 @@ class IdempotencyStoreTest(unittest.TestCase):
         return {
             "authorization_id": authorization_id,
             "merchant_name": "Shell",
-            "merchant_id": "gas",
+            "merchant_id": "shell",
             "mcc": "5542",
             "category": "gas",
             "category_confidence": 0.8,

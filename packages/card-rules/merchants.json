@@ -1,27 +1,48 @@
 [
   {
-    "id": "coffee",
-    "name": "Blue Bottle Coffee",
+    "id": "starbucks",
+    "name": "Starbucks",
     "category": "dining",
     "mcc": "5814",
-    "amount_cents": 600
+    "amount_cents": 650
   },
   {
-    "id": "restaurant",
-    "name": "Local Bistro",
+    "id": "mcdonalds",
+    "name": "McDonald's",
+    "category": "dining",
+    "mcc": "5814",
+    "amount_cents": 1240
+  },
+  {
+    "id": "chipotle",
+    "name": "Chipotle",
     "category": "dining",
     "mcc": "5812",
-    "amount_cents": 4800
+    "amount_cents": 1850
   },
   {
-    "id": "grocery",
+    "id": "whole_foods",
     "name": "Whole Foods",
     "category": "groceries",
     "mcc": "5411",
     "amount_cents": 8400
   },
   {
-    "id": "coffee_in_grocery",
+    "id": "trader_joes",
+    "name": "Trader Joe's",
+    "category": "groceries",
+    "mcc": "5411",
+    "amount_cents": 6200
+  },
+  {
+    "id": "kroger",
+    "name": "Kroger",
+    "category": "groceries",
+    "mcc": "5411",
+    "amount_cents": 9750
+  },
+  {
+    "id": "starbucks_whole_foods",
     "name": "Starbucks at Whole Foods",
     "category": "dining",
     "mcc": "5411",
@@ -29,66 +50,94 @@
     "note": "Coffee counter; MCC looks like grocery — override to dining"
   },
   {
-    "id": "meat_market",
-    "name": "Corner Butcher",
-    "category": "groceries",
-    "mcc": "5422",
-    "amount_cents": 3200
-  },
-  {
-    "id": "gas",
+    "id": "shell",
     "name": "Shell",
     "category": "gas",
     "mcc": "5542",
     "amount_cents": 4500
   },
   {
-    "id": "gas_station",
+    "id": "chevron",
     "name": "Chevron",
     "category": "gas",
     "mcc": "5541",
     "amount_cents": 5200
   },
   {
-    "id": "drugstore",
+    "id": "cvs",
     "name": "CVS",
     "category": "drugstore",
     "mcc": "5912",
     "amount_cents": 2500
   },
   {
-    "id": "flight",
-    "name": "JetBlue",
-    "category": "travel",
-    "mcc": "4511",
-    "amount_cents": 32900
+    "id": "walgreens",
+    "name": "Walgreens",
+    "category": "drugstore",
+    "mcc": "5912",
+    "amount_cents": 3100
   },
   {
-    "id": "hotel",
-    "name": "Marriott",
-    "category": "travel",
-    "mcc": "7011",
-    "amount_cents": 18900
-  },
-  {
-    "id": "electronics",
-    "name": "Best Buy",
+    "id": "amazon",
+    "name": "Amazon",
     "category": "other",
-    "mcc": "5732",
-    "amount_cents": 129900
+    "mcc": "5999",
+    "amount_cents": 4799
   },
   {
-    "id": "warehouse",
+    "id": "target",
+    "name": "Target",
+    "category": "other",
+    "mcc": "5311",
+    "amount_cents": 6700
+  },
+  {
+    "id": "walmart",
+    "name": "Walmart",
+    "category": "other",
+    "mcc": "5310",
+    "amount_cents": 11200
+  },
+  {
+    "id": "costco",
     "name": "Costco",
     "category": "other",
     "mcc": "5300",
     "amount_cents": 15600
   },
   {
-    "id": "department",
-    "name": "Target",
+    "id": "best_buy",
+    "name": "Best Buy",
     "category": "other",
-    "mcc": "5311",
-    "amount_cents": 6700
+    "mcc": "5732",
+    "amount_cents": 129900
+  },
+  {
+    "id": "uber",
+    "name": "Uber",
+    "category": "other",
+    "mcc": "4121",
+    "amount_cents": 2240
+  },
+  {
+    "id": "uber_eats",
+    "name": "Uber Eats",
+    "category": "dining",
+    "mcc": "5812",
+    "amount_cents": 2890
+  },
+  {
+    "id": "delta",
+    "name": "Delta Air Lines",
+    "category": "travel",
+    "mcc": "4511",
+    "amount_cents": 32900
+  },
+  {
+    "id": "marriott",
+    "name": "Marriott",
+    "category": "travel",
+    "mcc": "7011",
+    "amount_cents": 18900
   }
 ]

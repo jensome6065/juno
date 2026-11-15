@@ -1,6 +1,6 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class CardOut(BaseModel):
@@ -45,10 +45,37 @@ class TransactionOut(BaseModel):
 
 
 class SimulateRequest(BaseModel):
-    merchant_id: str
+    """Catalog id OR free-text name+MCC. Category is always inferred by the DE."""
+
+    merchant_id: Optional[str] = None
+    merchant_name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    mcc: Optional[str] = Field(default=None, min_length=3, max_length=8)
     amount: Optional[float] = Field(default=None, gt=0)
     # Stripe (or demo) authorization id — UNIQUE in the data plane for idempotency.
     authorization_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+
+    @model_validator(mode="after")
+    def require_catalog_or_free_text(self) -> "SimulateRequest":
+        if self.merchant_id:
+            return self
+        if self.merchant_name and self.mcc:
+            return self
+        raise ValueError("provide merchant_id, or merchant_name + mcc")
+
+
+class InferRequest(BaseModel):
+    merchant_name: str = Field(min_length=1, max_length=255)
+    mcc: str = Field(min_length=3, max_length=8)
+
+
+class InferResponse(BaseModel):
+    category: str
+    confidence: float
+    source: str
+    override_id: Optional[str] = None
+    mcc_category: Optional[str] = None
+    mcc: str
+    merchant_name: str
 
 
 class RouteScore(BaseModel):

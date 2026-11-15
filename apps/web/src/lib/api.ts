@@ -35,6 +35,16 @@ export type Merchant = {
   typical_amount: number;
 };
 
+export type InferResponse = {
+  category: string;
+  confidence: number;
+  source: string;
+  override_id?: string | null;
+  mcc_category?: string | null;
+  mcc: string;
+  merchant_name: string;
+};
+
 export type Transaction = {
   id: number;
   merchant_name: string;
@@ -168,6 +178,21 @@ export const api = {
     request<SimulateResponse>("/simulate", {
       method: "POST",
       body: JSON.stringify({ merchant_id, amount, authorization_id }),
+    }),
+  simulateFreeText: (body: {
+    merchant_name: string;
+    mcc: string;
+    amount: number;
+    authorization_id?: string;
+  }) =>
+    request<SimulateResponse>("/simulate", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  infer: (merchant_name: string, mcc: string) =>
+    request<InferResponse>("/infer", {
+      method: "POST",
+      body: JSON.stringify({ merchant_name, mcc }),
     }),
   walletStatus: () => request<WalletStatus>("/wallet/status"),
   createWalletPass: () =>

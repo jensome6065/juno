@@ -34,36 +34,36 @@ class ScorePurchasesTest(unittest.TestCase):
                 "reflect",
             },
         )
-        self.assertGreaterEqual(len(self.merchants), 10)
-        self.assertEqual(self.merchants["coffee"]["mcc"], "5814")
-        self.assertEqual(self.merchants["grocery"]["mcc"], "5411")
-        self.assertEqual(self.merchants["gas"]["mcc"], "5542")
-        self.assertEqual(self.merchants["electronics"]["mcc"], "5732")
+        self.assertEqual(len(self.merchants), 20)
+        self.assertEqual(self.merchants["starbucks"]["mcc"], "5814")
+        self.assertEqual(self.merchants["whole_foods"]["mcc"], "5411")
+        self.assertEqual(self.merchants["shell"]["mcc"], "5542")
+        self.assertEqual(self.merchants["best_buy"]["mcc"], "5732")
 
     def test_coffee_picks_amex_gold(self):
-        result = self._choose("coffee")
+        result = self._choose("starbucks")
         self.assertEqual(result["card_id"], "amex_gold")
-        self.assertAlmostEqual(result["value_cents"], 24.0)  # $6 × 4x × 1¢
-        self.assertAlmostEqual(result["baseline_value_cents"], 6.0)
+        self.assertAlmostEqual(result["value_cents"], 26.0)  # $6.50 × 4x × 1¢
+        self.assertAlmostEqual(result["baseline_value_cents"], 6.5)
         self.assertIn("4x on dining", result["reason"])
-        self.assertIn("$0.24", result["reason"])
-        self.assertIn("$0.06", result["reason"])
+        self.assertIn("$0.26", result["reason"])
+        self.assertIn("$0.07", result["reason"])
 
     def test_grocery_picks_freedom_flex_rotating(self):
-        result = self._choose("grocery")
+        result = self._choose("whole_foods")
         self.assertEqual(result["card_id"], "freedom_flex")
         # $84 × 5x rotating
         self.assertAlmostEqual(result["value_cents"], 420.0)
         self.assertIn("5x rotating on groceries", result["reason"])
 
     def test_gas_picks_freedom_flex_rotating(self):
-        result = self._choose("gas")
+        result = self._choose("shell")
         self.assertEqual(result["card_id"], "freedom_flex")
         self.assertAlmostEqual(result["value_cents"], 225.0)  # $45 × 5x
         self.assertIn("5x rotating on gas", result["reason"])
 
     def test_gas_past_rotating_cap_falls_back_to_double_cash(self):
-        gas = self.merchants["gas"]
+        gas = self.merchants["shell"]
         result = choose_card(
             self.cards,
             gas["category"],
@@ -195,7 +195,7 @@ class ScorePurchasesTest(unittest.TestCase):
     def test_merchant_mccs_match_the_category_map(self):
         mcc_map = load_mcc_map()
         for merchant in self.merchants.values():
-            if merchant["id"] == "coffee_in_grocery":
+            if merchant["id"] == "starbucks_whole_foods":
                 # Intentionally mismatched MCC — resolved by merchant_overrides.
                 self.assertEqual(mcc_map[merchant["mcc"]], "groceries")
                 self.assertEqual(merchant["category"], "dining")
@@ -224,11 +224,11 @@ class ScorePurchasesTest(unittest.TestCase):
         self.assertAlmostEqual(result["value_cents"], 40.0)  # $20 × 2%
 
     def test_sapphire_point_value_beats_a_flat_one_x_on_dining_but_not_gold(self):
-        coffee = self.merchants["coffee"]
-        result = self._choose("coffee")
+        coffee = self.merchants["starbucks"]
+        result = self._choose("starbucks")
         sapphire = next(row for row in result["ranking"] if row["card_id"] == "sapphire_pref")
-        # $6 × 3x × 1.25¢ = $0.225, behind Gold's $0.24
-        self.assertAlmostEqual(sapphire["reward_cents"], 22.5)
+        # $6.50 × 3x × 1.25¢ = $0.24375, behind Gold's $0.26
+        self.assertAlmostEqual(sapphire["reward_cents"], 24.375)
         self.assertEqual(result["card_id"], "amex_gold")
         self.assertEqual(coffee["mcc"], "5814")
 
@@ -242,15 +242,15 @@ class ScorePurchasesTest(unittest.TestCase):
 
     def test_edge_mccs_route_to_expected_winners(self):
         cases = [
-            ("restaurant", "amex_gold"),       # 5812 dining
-            ("meat_market", "freedom_flex"),   # 5422 groceries → rotating
-            ("gas_station", "freedom_flex"),   # 5541 gas → rotating
-            ("drugstore", "freedom_flex"),     # 5912, ties Unlimited at 3x
-            ("flight", "amex_gold"),           # 4511 travel 3x > Sapphire 2.5¢
-            ("hotel", "amex_gold"),            # 7011 travel
-            ("electronics", "double_cash"),    # 5732 other
-            ("warehouse", "double_cash"),      # 5300 warehouse clubs → other
-            ("department", "double_cash"),     # 5311 department → other
+            ("chipotle", "amex_gold"),           # 5812 dining
+            ("trader_joes", "freedom_flex"),     # 5411 groceries → rotating
+            ("chevron", "freedom_flex"),         # 5541 gas → rotating
+            ("cvs", "freedom_flex"),             # 5912 drugstore
+            ("delta", "amex_gold"),              # 4511 travel
+            ("marriott", "amex_gold"),           # 7011 travel
+            ("best_buy", "double_cash"),         # 5732 other
+            ("costco", "double_cash"),           # 5300 warehouse
+            ("target", "double_cash"),           # 5311 department
         ]
         for merchant_id, card_id in cases:
             with self.subTest(merchant=merchant_id):

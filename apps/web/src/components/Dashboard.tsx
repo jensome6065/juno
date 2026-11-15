@@ -7,7 +7,7 @@ import {
   type Card,
   type DecisionEvent,
   type Transaction,
-  type WalletStatus,
+  type WalletStatus as WalletStatusData,
 } from "@/lib/api";
 import { money } from "@/lib/format";
 import { SavingsCompare } from "@/components/SavingsCompare";
@@ -22,7 +22,7 @@ import { WalletStatus } from "@/components/WalletStatus";
 export function Dashboard() {
   const [cards, setCards] = useState<Card[]>([]);
   const [txs, setTxs] = useState<Transaction[]>([]);
-  const [wallet, setWallet] = useState<WalletStatus | null>(null);
+  const [wallet, setWallet] = useState<WalletStatusData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [walletError, setWalletError] = useState<string | null>(null);
   const [live, setLive] = useState<"connecting" | "live" | "offline">(
@@ -100,7 +100,7 @@ export function Dashboard() {
   function resetDemo() {
     if (
       !window.confirm(
-        "Clear all demo transactions and cap history? This cannot be undone.",
+        "Clear spam taps and load a varied pitch history (coffee, gas, grocery, flight, …)?",
       )
     ) {
       return;
@@ -108,11 +108,16 @@ export function Dashboard() {
     setError(null);
     startTransition(async () => {
       try {
-        await api.resetDemo();
-        setTxs([]);
-        const [c, w] = await Promise.all([api.cards(), api.walletStatus()]);
+        // Wipe + seed distinct merchants so the feed isn’t 6× Blue Bottle.
+        await api.runDemoScript(true);
+        const [c, w, txs] = await Promise.all([
+          api.cards(),
+          api.walletStatus(),
+          api.transactions(),
+        ]);
         setCards(c);
         setWallet(w);
+        setTxs(txs);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Reset failed");
       }
@@ -327,7 +332,7 @@ export function Dashboard() {
                 onClick={resetDemo}
                 className="rounded-full border border-line px-4 py-2 text-sm text-muted transition hover:border-warn hover:text-warn disabled:opacity-40"
               >
-                Reset demo
+                Reset & seed pitch
               </button>
             </div>
             <ul className="mt-6 space-y-4">

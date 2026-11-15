@@ -20,11 +20,52 @@ router = APIRouter(prefix="/demo", tags=["demo"])
 
 # Fixed auth ids so re-running the script is idempotent within a session
 # after reset, and curl docs stay copy-pasteable.
-SCRIPT_AUTH = {
-    "coffee": "demo_script_v1_coffee",
-    "gas_burn": "demo_script_v1_gas_burn",
-    "coffee_in_grocery": "demo_script_v1_coffee_in_grocery",
-}
+# Varied feed for the dashboard — not six identical coffees.
+SCRIPT_BEATS: list[dict] = [
+    {
+        "name": "starbucks",
+        "merchant_id": "starbucks",
+        "expected_card_id": "amex_gold",
+        "note": "4x dining on Starbucks",
+    },
+    {
+        "name": "gas_burn",
+        "merchant_id": "shell",
+        "expected_card_id": "freedom_flex",
+        "note": "Fill Freedom Flex rotating cap",
+        "fill_rotating_cap": True,
+    },
+    {
+        "name": "whole_foods",
+        "merchant_id": "whole_foods",
+        "expected_card_id": "amex_gold",
+        "note": "Rotating cap full → Amex Gold 4x groceries",
+    },
+    {
+        "name": "cvs",
+        "merchant_id": "cvs",
+        "expected_card_id": "freedom_flex",
+        "note": "3x drugstore on Freedom Flex",
+    },
+    {
+        "name": "delta",
+        "merchant_id": "delta",
+        "expected_card_id": "amex_gold",
+        "note": "3x travel on Amex Gold",
+    },
+    {
+        "name": "best_buy",
+        "merchant_id": "best_buy",
+        "expected_card_id": "double_cash",
+        "note": "Uncategorized → Double Cash 2%",
+    },
+    {
+        "name": "starbucks_whole_foods",
+        "merchant_id": "starbucks_whole_foods",
+        "expected_card_id": "amex_gold",
+        "note": "MCC 5411 groceries → override dining → Amex Gold",
+    },
+]
 
 
 class ResetResponse(BaseModel):
@@ -78,11 +119,7 @@ def reset_demo() -> ResetResponse:
 
 @router.post("/script", response_model=DemoScriptResponse)
 def run_demo_script(body: DemoScriptRequest | None = None) -> DemoScriptResponse:
-    """Run the 3-beat pitch without touching the UI.
-
-    1. Coffee → Amex Gold (4x dining)
-    2. Burn Freedom Flex rotating cap with gas ($1,500)
-    3. Starbucks at Whole Foods → Amex Gold (MCC grocery, override dining)
+    """Seed a varied pitch history (coffee, gas, grocery, drugstore, flight, …).
 
     Fixed authorization_ids make the script idempotent after a reset.
     """
@@ -96,48 +133,29 @@ def run_demo_script(body: DemoScriptRequest | None = None) -> DemoScriptResponse
     suffix = f"_{body.run_id}" if body.run_id else ""
     steps: list[DemoScriptStep] = []
 
-    # Beat 1 — coffee
-    steps.append(
-        _run_beat(
-            beat=1,
-            name="coffee",
-            merchant_id="coffee",
-            authorization_id=SCRIPT_AUTH["coffee"] + suffix,
-            expected_card_id="amex_gold",
-            note="4x dining on coffee",
-        )
-    )
-
-    # Beat 2 — fill Flex rotating bucket in one gas charge
     flex = get_card("freedom_flex")
     burn_dollars = 1500.0
     if flex is not None:
         limit = _cap_limit(flex, "rotating")
         if limit:
             burn_dollars = limit / 100.0
-    steps.append(
-        _run_beat(
-            beat=2,
-            name="gas_burn",
-            merchant_id="gas",
-            authorization_id=SCRIPT_AUTH["gas_burn"] + suffix,
-            expected_card_id="freedom_flex",
-            amount=burn_dollars,
-            note=f"Fill Freedom Flex rotating cap (${burn_dollars:g})",
-        )
-    )
 
-    # Beat 3 — coffee counter under grocery MCC
-    steps.append(
-        _run_beat(
-            beat=3,
-            name="coffee_in_grocery",
-            merchant_id="coffee_in_grocery",
-            authorization_id=SCRIPT_AUTH["coffee_in_grocery"] + suffix,
-            expected_card_id="amex_gold",
-            note="MCC 5411 groceries → override dining → Amex Gold",
+    for index, beat in enumerate(SCRIPT_BEATS, start=1):
+        amount = burn_dollars if beat.get("fill_rotating_cap") else None
+        note = beat["note"]
+        if beat.get("fill_rotating_cap"):
+            note = f"Fill Freedom Flex rotating cap (${burn_dollars:g})"
+        steps.append(
+            _run_beat(
+                beat=index,
+                name=beat["name"],
+                merchant_id=beat["merchant_id"],
+                authorization_id=f"demo_script_v2_{beat['name']}{suffix}",
+                expected_card_id=beat["expected_card_id"],
+                amount=amount,
+                note=note,
+            )
         )
-    )
 
     wallet_updated = False
     try:
