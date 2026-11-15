@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import init_db
-from app.routers import cards, demo, events, security, simulate, transactions, wallet, webhooks
+from app.routers import caps, cards, demo, events, security, simulate, transactions, wallet, webhooks
 
 ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(ROOT / ".env")
@@ -35,6 +35,7 @@ app.add_middleware(
 )
 
 app.include_router(cards.router)
+app.include_router(caps.router)
 app.include_router(transactions.router)
 app.include_router(simulate.router)
 app.include_router(wallet.router)

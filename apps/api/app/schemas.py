@@ -86,6 +86,27 @@ class SimulateResponse(BaseModel):
     idempotent_replay: bool = False
 
 
+class CapBucketOut(BaseModel):
+    """One bonus-spend bucket for the current period (UI meter)."""
+
+    spent_cents: int
+    limit_cents: int
+    remaining_cents: int
+    spent: float
+    limit: float
+    remaining: float
+    period: str
+    period_id: str
+    period_start: str
+    period_end: str
+    progress: float = Field(ge=0)
+
+
+class CapStatusResponse(BaseModel):
+    as_of: str
+    caps: dict[str, dict[str, CapBucketOut]]
+
+
 class WalletStatusOut(BaseModel):
     configured: bool
     serial_number: Optional[str] = None

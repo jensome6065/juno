@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.db import SessionLocal, get_engine, init_db, reset_engine
-from app.engine.caps import apply_purchase, caps_for_scoring
+from app.engine.caps import apply_purchase, cap_status, caps_for_scoring
 from app.models.tables import Base, CapLedgerRow, PassStateRow, TransactionRow
 
 FORBIDDEN_PAN_KEYS = frozenset(
@@ -97,6 +97,16 @@ def get_caps(cards: list[dict[str, Any]], today: Optional[date] = None) -> dict[
     init_db()
     with SessionLocal() as session:
         return caps_for_scoring(cards, _ledger_dict(session), today=today)
+
+
+def get_cap_status(
+    cards: list[dict[str, Any]],
+    today: Optional[date] = None,
+) -> dict[str, dict[str, dict]]:
+    """UI-ready cap meters: spent / limit / remaining / period per card bucket."""
+    init_db()
+    with SessionLocal() as session:
+        return cap_status(cards, _ledger_dict(session), today=today)
 
 
 def get_pass_state() -> dict[str, Any]:

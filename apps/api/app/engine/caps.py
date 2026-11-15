@@ -132,5 +132,57 @@ def remaining_cents(card: dict, cap_key: str, ledger: dict, today: Optional[date
     return max(0, limit - spent)
 
 
+def cap_status(
+    cards: list,
+    ledger: dict,
+    today: Optional[date] = None,
+) -> dict[str, dict[str, dict]]:
+    """Rich cap meters for the UI.
+
+    Shape:
+      {
+        "freedom_flex": {
+          "rotating": {
+            "spent_cents": 0, "limit_cents": 150000, "remaining_cents": 150000,
+            "spent": 0.0, "limit": 1500.0, "remaining": 1500.0,
+            "period": "quarter", "period_id": "2026-Q4",
+            "period_start": "2026-10-01", "period_end": "2027-01-01",
+            "progress": 0.0
+          }
+        },
+        ...
+      }
+    """
+    today = today or date.today()
+    out: dict[str, dict[str, dict]] = {}
+    for card in cards:
+        buckets: dict[str, dict] = {}
+        for key in card.get("caps") or {}:
+            limit = _cap_limit(card, key)
+            if limit is None:
+                continue
+            period = _cap_period(card, key)
+            pid = period_id(period, today)
+            start, end = period_bounds(period, today)
+            spent = int(ledger.get(_ledger_key(card["id"], key, pid), 0))
+            remaining = max(0, limit - spent)
+            buckets[key] = {
+                "spent_cents": spent,
+                "limit_cents": limit,
+                "remaining_cents": remaining,
+                "spent": round(spent / 100.0, 2),
+                "limit": round(limit / 100.0, 2),
+                "remaining": round(remaining / 100.0, 2),
+                "period": period,
+                "period_id": pid,
+                "period_start": start.isoformat(),
+                "period_end": end.isoformat(),
+                "progress": round(spent / limit, 4) if limit else 0.0,
+            }
+        if buckets:
+            out[card["id"]] = buckets
+    return out
+
+
 def _ledger_key(card_id: str, cap_key: str, pid: str) -> str:
     return f"{card_id}|{cap_key}|{pid}"

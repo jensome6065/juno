@@ -100,6 +100,44 @@ export type SecurityStatus = {
   webhook_path: string;
 };
 
+export type CapBucket = {
+  spent_cents: number;
+  limit_cents: number;
+  remaining_cents: number;
+  spent: number;
+  limit: number;
+  remaining: number;
+  period: string;
+  period_id: string;
+  period_start: string;
+  period_end: string;
+  progress: number;
+};
+
+export type CapStatus = {
+  as_of: string;
+  caps: Record<string, Record<string, CapBucket>>;
+};
+
+export type DemoScriptStep = {
+  beat: number;
+  name: string;
+  merchant_id: string;
+  authorization_id: string;
+  expected_card_id: string;
+  transaction: Transaction;
+  ok: boolean;
+  note: string;
+};
+
+export type DemoScriptResponse = {
+  ok: boolean;
+  reset: boolean;
+  steps: DemoScriptStep[];
+  caps: CapStatus;
+  wallet_updated: boolean;
+};
+
 export type WalletStatus = {
   configured: boolean;
   serial_number: string | null;
@@ -140,6 +178,12 @@ export const api = {
   resetDemo: () =>
     request<{ ok: boolean; wallet_updated: boolean }>("/demo/reset", {
       method: "POST",
+    }),
+  caps: () => request<CapStatus>("/caps"),
+  runDemoScript: (reset = true, run_id?: string) =>
+    request<DemoScriptResponse>("/demo/script", {
+      method: "POST",
+      body: JSON.stringify({ reset, run_id }),
     }),
   eventsUrl: () => `${API_URL}/events`,
   async probeUnsignedWebhook(): Promise<{ status: number; detail: string }> {

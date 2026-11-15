@@ -55,6 +55,23 @@ Keep the dashboard open in another tab while you tap — history updates live ov
 
 Different merchants exercise different rules. Try **Starbucks at Whole Foods** to see a merchant override (MCC looks like grocery, scored as dining). Groceries and gas usually pick different winners; large bonus spend can show a **cap split** in the score breakdown.
 
+### Cap meters + pitch script (API)
+
+For UX wiring and judge-proof demos (no dropdown fumbling):
+
+```bash
+# Current-period bonus caps (spent / limit / remaining / period)
+curl -s http://127.0.0.1:8000/caps | python3 -m json.tool
+
+# 3-beat story: coffee → burn Flex rotating → coffee-in-grocery
+curl -s -X POST http://127.0.0.1:8000/demo/script \
+  -H 'Content-Type: application/json' \
+  -d '{"reset": true}' | python3 -m json.tool
+```
+
+Expected winners: Amex Gold → Freedom Flex → Amex Gold (dining override).  
+Web client helpers: `api.caps()` and `api.runDemoScript()`.
+
 ### Optional: Stripe webhook forwarding
 
 ```bash
