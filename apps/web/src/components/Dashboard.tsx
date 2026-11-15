@@ -10,6 +10,7 @@ import {
   type WalletStatus as WalletStatusData,
 } from "@/lib/api";
 import { money } from "@/lib/format";
+import { JunoSmartCard } from "@/components/JunoSmartCard";
 import { SavingsCompare } from "@/components/SavingsCompare";
 import { SecurityPanel } from "@/components/SecurityPanel";
 import { SiteNav } from "@/components/SiteNav";
@@ -75,7 +76,6 @@ export function Dashboard() {
 
   const extraTotal = txs.reduce((sum, tx) => sum + tx.extra_value, 0);
   const spendTotal = txs.reduce((sum, tx) => sum + tx.amount, 0);
-  const last = txs[0] ?? null;
 
   function addToWallet() {
     setWalletError(null);
@@ -129,7 +129,7 @@ export function Dashboard() {
       <SiteNav active="dashboard" />
 
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-14 px-6 py-10 md:py-14">
-        <header className="animate-rise grid gap-10 md:grid-cols-[1.05fr_0.95fr] md:items-end">
+        <header className="animate-rise grid gap-10 md:grid-cols-[1.05fr_0.95fr] md:items-center">
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm tracking-[0.2em] text-muted uppercase">
@@ -186,52 +186,7 @@ export function Dashboard() {
             ) : null}
           </div>
 
-          <div className="animate-rise relative aspect-[1.6/1] w-full max-w-md justify-self-end overflow-hidden rounded-[28px] border border-line bg-card-face p-7 shadow-[0_30px_80px_rgba(0,0,0,0.35)] [animation-delay:100ms]">
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,transparent_40%,rgba(184,242,85,0.12)_100%)]" />
-            <div className="relative flex h-full flex-col justify-between">
-              <div className="flex items-start justify-between">
-                <span className="font-[family-name:var(--font-display)] text-2xl tracking-wide">
-                  JUNO
-                </span>
-                <span
-                  className={`rounded-full border px-3 py-1 text-xs ${
-                    wallet?.serial_number
-                      ? "border-accent/40 text-accent"
-                      : wallet?.configured
-                        ? "border-line text-muted"
-                        : "border-warn/40 text-warn"
-                  }`}
-                >
-                  {!wallet
-                    ? "…"
-                    : !wallet.configured
-                      ? "wallet off"
-                      : wallet.serial_number
-                        ? "pass live"
-                        : "no pass yet"}
-                </span>
-              </div>
-              <div>
-                <p className="text-sm text-muted">Last routed to</p>
-                <p className="mt-1 font-[family-name:var(--font-display)] text-2xl">
-                  {last?.selected_card_name ?? "Waiting for a tap"}
-                </p>
-                {last ? (
-                  <p className="mt-2 text-sm text-muted">
-                    {money(last.default_reward_value)} on{" "}
-                    {last.default_card_name} →{" "}
-                    <span className="text-accent">
-                      {money(last.reward_value)} · +{money(last.extra_value)}
-                    </span>
-                  </p>
-                ) : (
-                  <p className="mt-2 text-sm text-accent">
-                    Extra rewards show up after each tap
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
+          <JunoSmartCard />
         </header>
 
         <section className="animate-rise grid gap-4 sm:grid-cols-3 [animation-delay:140ms]">
