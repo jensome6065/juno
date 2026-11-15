@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { SavingsCompare } from "@/components/SavingsCompare";
 import { SiteNav } from "@/components/SiteNav";
 import {
@@ -19,22 +19,34 @@ import { playNfcTapSound, unlockNfcAudio } from "@/lib/nfcSound";
 
 type Phase = "idle" | "waiting" | "reading" | "approved" | "error";
 
-/** Pitch-friendly shortcuts — teach override / rotating / cap burn without the full select. */
+/** Pitch-friendly shortcuts: teach override / rotating / cap burn without the full select. */
 const PITCH_CHIPS: {
   id: string;
   tag: string;
+  shortName: string;
   hint: string;
 }[] = [
-  { id: "starbucks", tag: "Dining", hint: "Amex Gold 4x" },
-  { id: "shell", tag: "Gas / rotating", hint: "Freedom Flex 5x" },
-  { id: "whole_foods", tag: "Cap burn", hint: "Gold after Flex full" },
+  { id: "starbucks", tag: "Dining", shortName: "Starbucks", hint: "Gold 4x" },
+  { id: "shell", tag: "Gas", shortName: "Shell", hint: "Flex 5x" },
+  {
+    id: "whole_foods",
+    tag: "Cap",
+    shortName: "Whole Foods",
+    hint: "Gold after Flex",
+  },
   {
     id: "starbucks_whole_foods",
     tag: "Override",
-    hint: "MCC grocery → dining",
+    shortName: "SBX @ WF",
+    hint: "MCC to dining",
   },
-  { id: "cvs", tag: "Drugstore", hint: "Flex 3x" },
-  { id: "best_buy", tag: "Catch-all", hint: "Double Cash 2%" },
+  { id: "cvs", tag: "Drug", shortName: "CVS", hint: "Flex 3x" },
+  {
+    id: "best_buy",
+    tag: "Other",
+    shortName: "Best Buy",
+    hint: "Double Cash",
+  },
 ];
 
 export function TerminalPay() {
@@ -50,11 +62,17 @@ export function TerminalPay() {
   const [error, setError] = useState<string | null>(null);
   const [authId, setAuthId] = useState<string | null>(null);
   const [financeMode, setFinanceMode] = useState(false);
+  const [moreMerchants, setMoreMerchants] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [live, setLive] = useState<"connecting" | "live" | "offline">(
     "connecting",
   );
   const [pending, startTransition] = useTransition();
+  const resultRef = useRef<HTMLDivElement>(null);
   const carryMonths = financeMode ? 12 : 0;
+
+  const showResult = phase === "approved" && result;
+  const collapsed = Boolean(showResult);
 
   useEffect(() => {
     api
@@ -93,6 +111,12 @@ export function TerminalPay() {
     return () => source.close();
   }, []);
 
+  useEffect(() => {
+    if (phase === "approved" && resultRef.current) {
+      resultRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [phase, result]);
+
   const merchant = merchants.find((m) => m.id === selectedId) ?? null;
   const pitchChips = PITCH_CHIPS.filter((chip) =>
     merchants.some((m) => m.id === chip.id),
@@ -110,6 +134,10 @@ export function TerminalPay() {
     mode === "catalog" ? (merchant?.name ?? "") : customName.trim();
   const previewMcc =
     mode === "catalog" ? (merchant?.mcc ?? "") : customMcc.trim();
+  const activeChip =
+    mode === "catalog"
+      ? pitchChips.find((chip) => chip.id === selectedId)
+      : null;
 
   function selectMerchant(id: string) {
     setMode("catalog");
@@ -189,209 +217,252 @@ export function TerminalPay() {
   const busy = phase === "waiting" || phase === "reading";
 
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-background">
+    <div className="flex min-h-full flex-1 flex-col">
       <SiteNav active="terminal" live={live} />
 
-      <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-10">
-        <div className="animate-rise overflow-hidden rounded-[32px] border border-line bg-[#101814] shadow-[0_40px_100px_rgba(0,0,0,0.55)]">
-          <div className="border-b border-line px-6 py-4 text-xs tracking-[0.25em] text-muted uppercase">
-            Merchant reader · top places
+      <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-8">
+        <div className="animate-rise overflow-hidden rounded-[2rem] bg-gradient-to-b from-[#151a16] to-[#0d100e] shadow-[0_40px_100px_rgba(0,0,0,0.55)]">
+          <div className="px-6 pt-5 text-center text-[10px] tracking-[0.3em] text-muted/80 uppercase">
+            Merchant reader
           </div>
 
-          <div className="space-y-8 px-6 py-10 text-center md:px-10">
-            <div>
-              <p className="text-sm text-muted">Pitch taps</p>
-              <div className="mt-3 flex flex-wrap justify-center gap-2">
-                {pitchChips.map((chip) => {
-                  const active = selectedId === chip.id;
-                  return (
-                    <button
-                      key={chip.id}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => selectMerchant(chip.id)}
-                      className={`rounded-full border px-3 py-2 text-left transition disabled:opacity-50 ${
-                        active
-                          ? "border-accent bg-accent/10 text-accent"
-                          : "border-line text-muted hover:border-accent hover:text-foreground"
-                      }`}
-                    >
-                      <span className="block text-xs tracking-wide uppercase">
-                        {chip.tag}
-                      </span>
-                      <span className="mt-0.5 block text-sm text-foreground">
-                        {merchants.find((m) => m.id === chip.id)?.name ?? chip.id}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-muted">
-                        {chip.hint}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-6 flex justify-center gap-2">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    setMode("catalog");
-                    resetOutcome();
-                  }}
-                  className={`rounded-full border px-4 py-2 text-sm transition ${
-                    mode === "catalog"
-                      ? "border-accent text-accent"
-                      : "border-line text-muted hover:text-foreground"
-                  }`}
-                >
-                  Catalog
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    setMode("custom");
-                    resetOutcome();
-                  }}
-                  className={`rounded-full border px-4 py-2 text-sm transition ${
-                    mode === "custom"
-                      ? "border-accent text-accent"
-                      : "border-line text-muted hover:text-foreground"
-                  }`}
-                >
-                  Free text
-                </button>
-              </div>
-
-              {mode === "catalog" ? (
-                <>
-                  <label className="mt-4 block text-sm text-muted">
-                    Or pick any merchant
-                  </label>
-                  <select
-                    className="mt-2 w-full appearance-none rounded-2xl border border-line bg-background px-4 py-3 text-center text-lg outline-none focus:border-accent"
-                    value={selectedId}
-                    disabled={busy || merchants.length === 0}
-                    onChange={(e) => selectMerchant(e.target.value)}
-                  >
-                    {merchants.length === 0 ? (
-                      <option value="">Loading merchants…</option>
-                    ) : (
-                      merchants.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </>
-              ) : (
-                <div className="mt-4 grid gap-3 text-left sm:grid-cols-2">
-                  <label className="block text-sm text-muted sm:col-span-2">
-                    Merchant name
-                    <input
-                      className="mt-2 w-full rounded-2xl border border-line bg-background px-4 py-3 text-foreground outline-none focus:border-accent"
-                      value={customName}
-                      disabled={busy}
-                      placeholder="Starbucks at Whole Foods"
-                      onChange={(e) => {
-                        setCustomName(e.target.value);
-                        resetOutcome();
-                      }}
-                    />
-                  </label>
-                  <label className="block text-sm text-muted">
-                    MCC
-                    <input
-                      className="mt-2 w-full rounded-2xl border border-line bg-background px-4 py-3 text-foreground outline-none focus:border-accent"
-                      value={customMcc}
-                      disabled={busy}
-                      placeholder="5411"
-                      onChange={(e) => {
-                        setCustomMcc(e.target.value);
-                        resetOutcome();
-                      }}
-                    />
-                  </label>
-                </div>
-              )}
-
-              {infer ? (
-                <p className="mt-2 text-sm text-muted">
-                  Inferred{" "}
-                  <span className="text-accent">{infer.category}</span>
-                  {" · "}
-                  {infer.source}
-                  {infer.source === "override" && infer.mcc_category
-                    ? ` (MCC looked like ${infer.mcc_category})`
-                    : null}
+          <div className="px-6 pb-7 pt-4 text-center">
+            {collapsed && result ? (
+              <button
+                type="button"
+                onClick={resetOutcome}
+                className="mb-6 w-full rounded-2xl bg-white/[0.03] px-4 py-3 text-left transition hover:bg-white/[0.05]"
+              >
+                <p className="text-xs tracking-[0.2em] text-muted uppercase">
+                  This tap
                 </p>
-              ) : previewMcc ? (
-                <p className="mt-2 text-sm text-muted">MCC {previewMcc}</p>
-              ) : null}
-            </div>
-
-            <div>
-              <label className="text-sm text-muted">Amount due</label>
-              <div className="mt-2 flex items-center justify-center gap-2">
-                <span className="font-[family-name:var(--font-display)] text-4xl text-muted">
-                  $
-                </span>
-                <input
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  inputMode="decimal"
-                  disabled={busy}
-                  value={amountInput}
-                  onChange={(e) => {
-                    setAmountInput(e.target.value);
-                    resetOutcome();
-                  }}
-                  className="w-40 bg-transparent text-center font-[family-name:var(--font-display)] text-6xl tracking-tight outline-none md:text-7xl"
-                />
-              </div>
-              {!amountOk ? (
-                <p className="mt-2 text-sm text-warn">Enter an amount over $0</p>
-              ) : null}
-
-              <label className="mt-5 flex cursor-pointer items-center justify-center gap-3 text-sm text-muted">
-                <input
-                  type="checkbox"
-                  className="size-4 accent-[var(--accent)]"
-                  checked={financeMode}
-                  disabled={busy}
-                  onChange={(e) => {
-                    setFinanceMode(e.target.checked);
-                    resetOutcome();
-                  }}
-                />
-                <span>
-                  Finance mode · weigh Reflect 0% APR over 12 months
-                </span>
-              </label>
-            </div>
-
-            <TapStage phase={phase} />
-
-            {phase === "approved" && result ? (
-              <div className="animate-rise space-y-4 rounded-2xl border border-accent/30 bg-accent/5 px-5 py-5 text-left">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm text-accent">
-                      {result.idempotent_replay ? "Replay blocked" : "Approved"}
-                    </p>
-                    {typeof result.latency_ms === "number" ? (
-                      <span className="rounded-full border border-line px-2.5 py-0.5 text-xs text-muted">
-                        routed in {formatLatency(result.latency_ms)}
+                <p className="mt-1 font-medium text-foreground">
+                  {result.transaction.merchant_name} ·{" "}
+                  {money(result.transaction.amount)}
+                </p>
+                <p className="mt-1 text-xs text-muted">
+                  Tap to change merchant or amount
+                </p>
+              </button>
+            ) : (
+              <div className="mb-1">
+                <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-1">
+                  {pitchChips.map((chip, index) => {
+                    const active =
+                      mode === "catalog" && selectedId === chip.id;
+                    return (
+                      <span key={chip.id} className="inline-flex items-center">
+                        {index > 0 ? (
+                          <span className="mx-0.5 text-muted/30" aria-hidden>
+                            /
+                          </span>
+                        ) : null}
+                        <button
+                          type="button"
+                          disabled={busy}
+                          title={`${chip.shortName} · ${chip.hint}`}
+                          onClick={() => selectMerchant(chip.id)}
+                          className={`px-1.5 py-1 text-sm transition disabled:opacity-50 ${
+                            active
+                              ? "text-accent"
+                              : "text-muted hover:text-foreground"
+                          }`}
+                        >
+                          {chip.shortName}
+                        </button>
                       </span>
+                    );
+                  })}
+                </div>
+
+                <p className="mt-2 text-xs text-muted">
+                  {infer ? (
+                    <span className="text-accent">{infer.category}</span>
+                  ) : (
+                    "pick a place"
+                  )}
+                  {activeChip ? ` · ${activeChip.hint}` : null}
+                </p>
+
+                {(moreMerchants || advancedOpen) && (
+                  <div className="mt-4 space-y-3 border-t border-white/5 pt-4">
+                    {moreMerchants ? (
+                      <div className="space-y-3">
+                        <div className="flex justify-center gap-4 text-xs">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => {
+                              setMode("catalog");
+                              resetOutcome();
+                            }}
+                            className={
+                              mode === "catalog" ? "text-accent" : "text-muted"
+                            }
+                          >
+                            Catalog
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => {
+                              setMode("custom");
+                              resetOutcome();
+                            }}
+                            className={
+                              mode === "custom" ? "text-accent" : "text-muted"
+                            }
+                          >
+                            Free text
+                          </button>
+                        </div>
+
+                        {mode === "catalog" ? (
+                          <select
+                            className="w-full appearance-none rounded-xl bg-white/[0.03] px-3 py-2.5 text-center text-sm outline-none focus:bg-white/[0.05]"
+                            value={selectedId}
+                            disabled={busy || merchants.length === 0}
+                            onChange={(e) => selectMerchant(e.target.value)}
+                          >
+                            {merchants.length === 0 ? (
+                              <option value="">Loading merchants…</option>
+                            ) : (
+                              merchants.map((m) => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name}
+                                </option>
+                              ))
+                            )}
+                          </select>
+                        ) : (
+                          <div className="grid gap-2 text-left sm:grid-cols-2">
+                            <label className="block text-xs text-muted sm:col-span-2">
+                              Merchant name
+                              <input
+                                className="mt-1 w-full rounded-xl bg-white/[0.03] px-3 py-2.5 text-sm text-foreground outline-none focus:bg-white/[0.05]"
+                                value={customName}
+                                disabled={busy}
+                                placeholder="Starbucks at Whole Foods"
+                                onChange={(e) => {
+                                  setCustomName(e.target.value);
+                                  resetOutcome();
+                                }}
+                              />
+                            </label>
+                            <label className="block text-xs text-muted">
+                              MCC
+                              <input
+                                className="mt-1 w-full rounded-xl bg-white/[0.03] px-3 py-2.5 text-sm text-foreground outline-none focus:bg-white/[0.05]"
+                                value={customMcc}
+                                disabled={busy}
+                                placeholder="5411"
+                                onChange={(e) => {
+                                  setCustomMcc(e.target.value);
+                                  resetOutcome();
+                                }}
+                              />
+                            </label>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+
+                    {advancedOpen ? (
+                      <label className="flex cursor-pointer items-center justify-center gap-2 text-xs text-muted">
+                        <input
+                          type="checkbox"
+                          className="size-3.5 accent-[var(--accent)]"
+                          checked={financeMode}
+                          disabled={busy}
+                          onChange={(e) => {
+                            setFinanceMode(e.target.checked);
+                            resetOutcome();
+                          }}
+                        />
+                        <span>Finance mode · Reflect 0% APR / 12 mo</span>
+                      </label>
                     ) : null}
                   </div>
+                )}
+              </div>
+            )}
+
+            {!collapsed ? (
+              <div className="mt-8 flex flex-col items-center">
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="font-[family-name:var(--font-display)] text-3xl text-muted/70">
+                    $
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    disabled={busy}
+                    value={amountInput}
+                    size={Math.max(4, amountInput.length)}
+                    onChange={(e) => {
+                      const next = e.target.value.replace(/[^\d.]/g, "");
+                      setAmountInput(next);
+                      resetOutcome();
+                    }}
+                    className="max-w-[min(100%,18rem)] bg-transparent text-center font-[family-name:var(--font-display)] text-5xl tracking-tight outline-none tabular-nums md:text-6xl"
+                    style={{
+                      width: `${Math.max(5, amountInput.length + 1)}ch`,
+                      fieldSizing: "content",
+                    }}
+                  />
+                </div>
+                {!amountOk ? (
+                  <p className="mt-2 text-xs text-warn">
+                    Enter an amount over $0
+                  </p>
+                ) : null}
+
+                <div className="mt-8">
+                  <TapStage phase={phase} />
+                </div>
+              </div>
+            ) : null}
+
+            {showResult ? (
+              <div
+                ref={resultRef}
+                className="animate-rise mt-2 space-y-4 text-left"
+              >
+                <div className="flex flex-col items-center gap-2 pb-1 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-ink">
+                    <span className="font-[family-name:var(--font-display)] text-xs tracking-wide">
+                      OK
+                    </span>
+                  </div>
+                  <p className="text-sm text-accent">
+                    {result.idempotent_replay
+                      ? "Same charge can’t route twice"
+                      : "Approved"}
+                    {typeof result.latency_ms === "number"
+                      ? ` · ${formatLatency(result.latency_ms)}`
+                      : null}
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 text-center">
                   <p className="font-[family-name:var(--font-display)] text-2xl">
                     {result.transaction.selected_card_name}
                   </p>
-                  <p className="text-sm text-muted">{result.transaction.reason}</p>
+                  <p className="text-sm text-muted">
+                    {result.transaction.reason}
+                  </p>
+                  {result.transaction.extra_value > 0 ? (
+                    <p className="font-[family-name:var(--font-display)] text-xl text-accent">
+                      +{money(result.transaction.extra_value)}
+                    </p>
+                  ) : null}
                 </div>
+
+                <p className="text-center text-xs tracking-wide text-muted">
+                  {result.idempotent_replay
+                    ? "Verified tap · duplicate route blocked"
+                    : "Verified tap · card numbers never leave the vault"}
+                </p>
 
                 <SavingsCompare
                   defaultCardName={result.transaction.default_card_name}
@@ -414,48 +485,75 @@ export function TerminalPay() {
             ) : null}
 
             {phase === "error" && error ? (
-              <StartupHints kind={classifyApiError(error)} detail={error} />
+              <div className="mt-6">
+                <StartupHints kind={classifyApiError(error)} detail={error} />
+              </div>
             ) : null}
             {phase !== "error" && merchants.length === 0 ? (
-              <StartupHints kind="no-merchants" />
+              <div className="mt-6">
+                <StartupHints kind="no-merchants" />
+              </div>
             ) : null}
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <div className="mt-8 flex flex-col items-center gap-3">
               {phase === "idle" || phase === "error" ? (
                 <button
                   type="button"
                   disabled={!canTap}
                   onClick={() => startTap()}
-                  className="rounded-full bg-accent px-8 py-4 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-50"
+                  className="w-full max-w-xs rounded-full bg-accent px-8 py-3.5 text-sm font-semibold text-accent-ink transition hover:brightness-110 disabled:opacity-50"
                 >
                   Hold phone to reader
                 </button>
               ) : null}
               {phase === "approved" ? (
-                <>
-                  <button
-                    type="button"
-                    disabled={!authId || pending}
-                    onClick={() => startTap(true)}
-                    className="rounded-full border border-line px-8 py-4 text-sm transition hover:border-accent disabled:opacity-50"
-                  >
-                    Replay same auth
-                  </button>
+                <div className="flex w-full max-w-xs flex-col gap-2 sm:flex-row">
                   <button
                     type="button"
                     onClick={resetOutcome}
-                    className="rounded-full border border-line px-8 py-4 text-sm transition hover:border-accent"
+                    className="flex-1 rounded-full px-6 py-3 text-sm text-muted transition hover:text-foreground"
                   >
                     New tap
                   </button>
                   <Link
                     href="/"
-                    className="rounded-full bg-accent px-8 py-4 text-sm font-semibold text-accent-ink transition hover:brightness-110"
+                    className="flex-1 rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-ink transition hover:brightness-110"
                   >
-                    View on dashboard
+                    Dashboard
                   </Link>
-                </>
+                </div>
               ) : null}
+
+              {!collapsed ? (
+                <div className="flex items-center gap-3 text-xs text-muted/70">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setMoreMerchants((open) => !open)}
+                    className="transition hover:text-muted disabled:opacity-50"
+                  >
+                    {moreMerchants ? "Less" : "More"}
+                  </button>
+                  <span aria-hidden>·</span>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => setAdvancedOpen((open) => !open)}
+                    className="transition hover:text-muted disabled:opacity-50"
+                  >
+                    {advancedOpen ? "Hide advanced" : "Advanced"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!authId || pending}
+                  onClick={() => startTap(true)}
+                  className="text-xs text-muted/70 transition hover:text-muted disabled:opacity-50"
+                >
+                  Try replay to prove it can’t double-route
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -492,7 +590,7 @@ function DecisionNotes({
 
   if (intel?.winner_cap_split) {
     notes.push(
-      "Winner hit a bonus cap — part of the purchase earned the default rate",
+      "Winner hit a bonus cap; part of the purchase earned the default rate",
     );
   } else if (transaction.cap_key && transaction.cap_remaining_cents != null) {
     notes.push(
@@ -505,11 +603,11 @@ function DecisionNotes({
   if (!notes.length) return null;
 
   return (
-    <div className="border-t border-line/80 pt-4">
+    <div className="border-t border-line/80 pt-3">
       <p className="text-xs tracking-[0.2em] text-muted uppercase">
         Why this category / rate
       </p>
-      <ul className="mt-3 space-y-2 text-sm text-muted">
+      <ul className="mt-2 space-y-1.5 text-sm text-muted">
         {notes.map((note) => (
           <li key={note} className="leading-snug">
             {note}
@@ -530,11 +628,11 @@ function ScoreBreakdown({
   if (!scores.length) return null;
 
   return (
-    <div className="border-t border-line/80 pt-4">
+    <div className="border-t border-line/80 pt-3">
       <p className="text-xs tracking-[0.2em] text-muted uppercase">
         Router decision
       </p>
-      <ul className="mt-3 space-y-3">
+      <ul className="mt-2 space-y-2">
         {scores.map((score, index) => {
           const winner = score.card_id === winnerId;
           const blocked = score.eligible === false;
@@ -557,11 +655,11 @@ function ScoreBreakdown({
                     <span className="ml-2 text-xs text-accent">selected</span>
                   ) : null}
                 </p>
-                <p className="mt-1 text-xs text-muted">{score.reason}</p>
+                <p className="mt-0.5 text-xs text-muted">{score.reason}</p>
               </div>
               <div className="shrink-0 text-right">
                 <p className={winner && !blocked ? "text-accent" : ""}>
-                  {blocked ? "—" : money(score.value)}
+                  {blocked ? "-" : money(score.value)}
                 </p>
               </div>
             </li>
@@ -578,28 +676,24 @@ function TapStage({ phase }: { phase: Phase }) {
       ? "Bring phone near reader…"
       : phase === "reading"
         ? "Reading Juno card…"
-        : phase === "approved"
-          ? "Routed"
-          : phase === "error"
-            ? "Declined"
-            : "Ready for Apple Wallet tap";
+        : phase === "error"
+          ? "Declined"
+          : "Ready for tap";
 
   return (
-    <div className="flex flex-col items-center gap-4 py-2">
+    <div className="flex flex-col items-center gap-3">
       <div
-        className={`flex h-28 w-28 items-center justify-center rounded-full border border-line ${
+        className={`flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full ${
           phase === "waiting" || phase === "reading"
-            ? "animate-pulse-ring bg-accent/10"
-            : phase === "approved"
-              ? "bg-accent text-accent-ink"
-              : "bg-background"
+            ? "animate-pulse-ring bg-accent/15"
+            : "bg-white/[0.04]"
         }`}
       >
-        <span className="font-[family-name:var(--font-display)] text-sm tracking-wide">
-          {phase === "approved" ? "OK" : "NFC"}
+        <span className="font-[family-name:var(--font-display)] text-xs tracking-[0.2em]">
+          NFC
         </span>
       </div>
-      <p className="text-sm text-muted">{label}</p>
+      <p className="text-xs text-muted">{label}</p>
     </div>
   );
 }

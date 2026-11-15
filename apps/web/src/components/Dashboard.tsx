@@ -13,15 +13,17 @@ import {
 import { money } from "@/lib/format";
 import { CapMeters } from "@/components/CapMeters";
 import { JunoSmartCard } from "@/components/JunoSmartCard";
-import { LiveBadge } from "@/components/LiveBadge";
-import { SavingsCompare } from "@/components/SavingsCompare";
-import { SecurityPanel } from "@/components/SecurityPanel";
 import { SiteNav } from "@/components/SiteNav";
 import {
   StartupHints,
   classifyApiError,
 } from "@/components/StartupHints";
+import { TrustBadge } from "@/components/TrustBadge";
 import { WalletStatus } from "@/components/WalletStatus";
+
+type Panel = "activity" | "cards" | "caps";
+
+const HISTORY_PREVIEW = 5;
 
 export function Dashboard() {
   const [cards, setCards] = useState<Card[]>([]);
@@ -34,9 +36,20 @@ export function Dashboard() {
     "connecting",
   );
   const [pending, startTransition] = useTransition();
+  const [flashIds, setFlashIds] = useState<Set<string>>(() => new Set());
+  const [capPulse, setCapPulse] = useState(0);
+  const [decisionPulse, setDecisionPulse] = useState(false);
+  const [panel, setPanel] = useState<Panel>("activity");
+  const [showAllTxs, setShowAllTxs] = useState(false);
 
   function refreshCaps() {
-    api.caps().then(setCaps).catch(() => {});
+    api
+      .caps()
+      .then((next) => {
+        setCaps(next);
+        setCapPulse((n) => n + 1);
+      })
+      .catch(() => {});
   }
 
   useEffect(() => {
@@ -69,16 +82,33 @@ export function Dashboard() {
         }
         if (event.type === "demo.reset") {
           setTxs([]);
+          setFlashIds(new Set());
           api.cards().then(setCards).catch(() => {});
           api.walletStatus().then(setWallet).catch(() => {});
           refreshCaps();
           return;
         }
         if (event.type === "decision.created" && event.transaction) {
+          const tx = event.transaction;
           setTxs((prev) => {
-            if (prev.some((tx) => tx.id === event.transaction!.id)) return prev;
-            return [event.transaction!, ...prev];
+            if (prev.some((row) => row.id === tx.id)) return prev;
+            return [tx, ...prev];
           });
+          setPanel("activity");
+          setDecisionPulse(true);
+          window.setTimeout(() => setDecisionPulse(false), 1400);
+          setFlashIds((prev) => {
+            const next = new Set(prev);
+            next.add(tx.id);
+            return next;
+          });
+          window.setTimeout(() => {
+            setFlashIds((prev) => {
+              const next = new Set(prev);
+              next.delete(tx.id);
+              return next;
+            });
+          }, 1200);
           api.cards().then(setCards).catch(() => {});
           refreshCaps();
         }
@@ -92,6 +122,8 @@ export function Dashboard() {
 
   const extraTotal = txs.reduce((sum, tx) => sum + tx.extra_value, 0);
   const spendTotal = txs.reduce((sum, tx) => sum + tx.amount, 0);
+  const lastTx = txs[0] ?? null;
+  const visibleTxs = showAllTxs ? txs : txs.slice(0, HISTORY_PREVIEW);
 
   function addToWallet() {
     setWalletError(null);
@@ -113,99 +145,46 @@ export function Dashboard() {
     });
   }
 
-  function resetDemo() {
-    if (
-      !window.confirm(
-        "Clear spam taps and load a varied pitch history (coffee, gas, grocery, flight, …)?",
-      )
-    ) {
-      return;
-    }
-    setError(null);
-    startTransition(async () => {
-      try {
-        // Wipe + seed distinct merchants so the feed isn’t 6× Blue Bottle.
-        await api.runDemoScript(true);
-        const [c, w, seeded, capStatus] = await Promise.all([
-          api.cards(),
-          api.walletStatus(),
-          api.transactions(),
-          api.caps(),
-        ]);
-        setCards(c);
-        setWallet(w);
-        setTxs(seeded);
-        setCaps(capStatus);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Reset failed");
-      }
-    });
-  }
-
   return (
     <div className="flex flex-1 flex-col">
       <SiteNav active="dashboard" live={live} />
 
-      <div className="mx-auto flex w-full max-w-5xl flex-col gap-14 px-6 py-10 md:py-14">
-        <header className="animate-rise grid gap-10 md:grid-cols-[1.05fr_0.95fr] md:items-center">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-8 md:gap-10 md:py-10">
+        <header className="animate-rise grid gap-8 md:grid-cols-[1.1fr_0.9fr] md:items-center">
           <div className="space-y-5">
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-sm tracking-[0.2em] text-muted uppercase">
-                Account
+                Your Juno
               </p>
-              <LiveBadge state={live} />
+              <TrustBadge live={live} />
             </div>
-            <h1 className="font-[family-name:var(--font-display)] max-w-xl text-5xl leading-[0.95] font-semibold tracking-tight md:text-6xl">
-              Your Juno
-              <span className="block text-muted">wallet dashboard</span>
-            </h1>
-            <p className="max-w-md text-base leading-relaxed text-muted">
-              Add Juno to Apple Wallet, then use the terminal to simulate a tap.
-              After each route, the Wallet pass updates with which card won.
-            </p>
-            <div className="flex flex-wrap gap-3">
+
+            <div>
+              <p className="text-sm text-muted">Extra earned vs 1%</p>
+              <p className="mt-2 font-[family-name:var(--font-display)] text-5xl leading-none tracking-tight text-accent md:text-6xl">
+                {money(extraTotal)}
+              </p>
+              <p className="mt-3 text-sm text-muted">
+                {money(spendTotal)} routed · {cards.length} cards
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4">
               <Link
                 href="/terminal"
                 className="rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink transition hover:brightness-110"
               >
                 Open tap terminal
               </Link>
-              {wallet?.share_url ? (
-                <a
-                  href={wallet.share_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10"
-                >
-                  Apple Wallet
-                </a>
-              ) : (
-                <button
-                  type="button"
-                  disabled={pending || wallet?.configured === false}
-                  onClick={addToWallet}
-                  className="rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10 disabled:opacity-50"
-                >
-                  {pending ? "Creating pass…" : "Add to Apple Wallet"}
-                </button>
-              )}
-              {wallet?.google_save_url ? (
-                <a
-                  href={wallet.google_save_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10"
-                >
-                  Google Wallet
-                </a>
-              ) : null}
+              <WalletStatus
+                compact
+                wallet={wallet}
+                pending={pending}
+                error={walletError}
+                onAdd={addToWallet}
+              />
             </div>
-            <WalletStatus
-              wallet={wallet}
-              pending={pending}
-              error={walletError}
-              onAdd={addToWallet}
-            />
+
             {error ? (
               <StartupHints kind={classifyApiError(error)} detail={error} />
             ) : null}
@@ -217,196 +196,262 @@ export function Dashboard() {
           <JunoSmartCard />
         </header>
 
-        <section className="animate-rise grid gap-4 sm:grid-cols-3 [animation-delay:140ms]">
-          <Stat label="Extra earned" value={money(extraTotal)} />
-          <Stat label="Routed spend" value={money(spendTotal)} />
-          <Stat label="Linked cards" value={String(cards.length)} />
-        </section>
+        <DecisionPipeline
+          tx={lastTx}
+          cardCount={cards.length}
+          pulse={decisionPulse}
+        />
 
-        <div className="animate-rise [animation-delay:150ms]">
-          <CapMeters caps={caps} />
-        </div>
-
-        <section className="animate-rise border-t border-line pt-10 [animation-delay:160ms]">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl">
-            How Juno decides
-          </h2>
-          <p className="mt-2 max-w-2xl text-sm text-muted">
-            At authorization time, one virtual card becomes the best linked
-            rewards card for that purchase — then the Wallet pass reflects it.
-          </p>
-          <ol className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            <DecideStep
-              n="01"
-              title="Resolve"
-              body="Map MCC + merchant name. Overrides catch coffee ringing as grocery."
-            />
-            <DecideStep
-              n="02"
-              title="Score"
-              body="Rank every linked card with rates, caps, and APR constraints."
-            />
-            <DecideStep
-              n="03"
-              title="Route"
-              body="Pick the winner once per authorization id — replays stay idempotent."
-            />
-            <DecideStep
-              n="04"
-              title="Update"
-              body="Stream the decision to this dashboard and refresh the Wallet pass."
-            />
-          </ol>
-        </section>
-
-        <section className="animate-rise grid gap-12 [animation-delay:180ms] md:grid-cols-2">
-          <div>
-            <h2 className="font-[family-name:var(--font-display)] text-2xl">
-              Linked cards
-            </h2>
-            <p className="mt-2 text-sm text-muted">
-              Juno picks among these at authorization time.
-            </p>
-            <ul className="mt-6 space-y-4">
-              {!error && cards.length === 0 ? (
-                <li>
-                  <StartupHints kind="empty-cards" />
-                </li>
-              ) : (
-                cards.map((card) => (
-                  <li
-                    key={card.id}
-                    className="border-b border-line pb-4 last:border-0"
-                  >
-                    <div className="flex items-baseline justify-between gap-4">
-                      <div>
-                        <p className="font-medium">
-                          {card.name}
-                          {card.is_default ? (
-                            <span className="ml-2 text-xs text-muted">
-                              default
-                            </span>
-                          ) : null}
-                        </p>
-                        <p className="mt-1 text-sm text-muted">
-                          {card.issuer} ···· {card.last4}
-                        </p>
-                      </div>
-                      <p className="text-right text-sm text-accent">
-                        {card.highlight}
-                      </p>
-                    </div>
-                  </li>
-                ))
-              )}
-            </ul>
+        <section className="animate-rise [animation-delay:100ms]">
+          <div
+            role="tablist"
+            aria-label="Dashboard panels"
+            className="flex flex-wrap gap-2 border-b border-line pb-3"
+          >
+            {(
+              [
+                ["activity", "Activity", txs.length],
+                ["cards", "Cards", cards.length],
+                ["caps", "Caps", null],
+              ] as const
+            ).map(([id, label, count]) => {
+              const active = panel === id;
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setPanel(id)}
+                  className={`rounded-full px-4 py-2 text-sm transition ${
+                    active
+                      ? "bg-accent text-accent-ink"
+                      : "text-muted hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                  {count != null ? (
+                    <span className={active ? "opacity-70" : ""}>
+                      {" "}
+                      · {count}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
           </div>
 
-          <div>
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 className="font-[family-name:var(--font-display)] text-2xl">
-                  Transaction history
-                </h2>
-                <p className="mt-2 text-sm text-muted">
-                  Live from the terminal — routed rewards vs a flat 1% baseline.
-                </p>
-              </div>
-              <button
-                type="button"
-                disabled={pending || txs.length === 0}
-                onClick={resetDemo}
-                className="rounded-full border border-line px-4 py-2 text-sm text-muted transition hover:border-warn hover:text-warn disabled:opacity-40"
-              >
-                Reset & seed pitch
-              </button>
-            </div>
-            <ul className="mt-6 space-y-4">
-              {txs.length === 0 ? (
-                <li>
-                  <StartupHints kind="empty-history" />
-                </li>
-              ) : (
-                txs.map((tx) => (
-                  <li
-                    key={tx.id}
-                    className="border-b border-line pb-4 last:border-0"
-                  >
-                    <div className="flex items-baseline justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="font-medium">{tx.merchant_name}</p>
-                        <p className="mt-1 text-sm text-muted">{tx.reason}</p>
-                        {(tx.category_source === "override" ||
-                          tx.cap_key) && (
-                          <p className="mt-1 text-xs text-accent">
-                            {tx.category_source === "override"
-                              ? `Override → ${tx.category}`
-                              : null}
-                            {tx.category_source === "override" && tx.cap_key
-                              ? " · "
-                              : null}
-                            {tx.cap_key
-                              ? `Cap “${tx.cap_key}” applied`
-                              : null}
-                          </p>
-                        )}
-                        <SavingsCompare
-                          compact
-                          defaultCardName={tx.default_card_name}
-                          selectedCardName={tx.selected_card_name}
-                          defaultRewardValue={tx.default_reward_value}
-                          rewardValue={tx.reward_value}
-                          extraValue={tx.extra_value}
-                        />
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p>{money(tx.amount)}</p>
-                        <p className="mt-1 text-sm text-accent">
-                          +{money(tx.extra_value)}
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                ))
-              )}
-            </ul>
+          <div className="min-h-[220px] pt-6" role="tabpanel">
+            {panel === "activity" ? (
+              <ActivityPanel
+                txs={visibleTxs}
+                total={txs.length}
+                flashIds={flashIds}
+                showAll={showAllTxs}
+                onToggleAll={() => setShowAllTxs((v) => !v)}
+                previewLimit={HISTORY_PREVIEW}
+              />
+            ) : null}
+
+            {panel === "cards" ? (
+              <CardsPanel cards={cards} error={error} />
+            ) : null}
+
+            {panel === "caps" ? (
+              <CapMeters caps={caps} pulseKey={capPulse} embedded />
+            ) : null}
           </div>
         </section>
-
-        <SecurityPanel live={live} />
       </div>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function DecisionPipeline({
+  tx,
+  cardCount,
+  pulse,
+}: {
+  tx: Transaction | null;
+  cardCount: number;
+  pulse: boolean;
+}) {
+  const category = tx?.category ?? null;
+  const resolved =
+    tx == null
+      ? "Merchant + MCC"
+      : tx.category_source === "override"
+        ? `${category} (override)`
+        : category ?? "category";
+  const scored =
+    tx == null
+      ? `${cardCount || "your"} cards`
+      : `${cardCount || "all"} cards ranked`;
+  const routed = tx?.selected_card_name ?? "Best rewards card";
+  const updated =
+    tx == null
+      ? "Wallet + live feed"
+      : tx.extra_value > 0
+        ? `+${money(tx.extra_value)} · Wallet`
+        : "Wallet + feed";
+
+  const steps = [
+    { key: "resolve", label: "Resolve", detail: resolved },
+    { key: "score", label: "Score", detail: scored },
+    { key: "route", label: "Route", detail: routed },
+    { key: "update", label: "Update", detail: updated },
+  ] as const;
+
   return (
-    <div className="border-t border-line pt-4">
-      <p className="text-sm text-muted">{label}</p>
-      <p className="mt-2 font-[family-name:var(--font-display)] text-3xl">
-        {value}
-      </p>
+    <section
+      className={`animate-rise rounded-2xl bg-panel/60 px-4 py-4 ring-1 ring-white/5 [animation-delay:80ms] md:px-5 ${
+        pulse ? "animate-flash-row" : ""
+      }`}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-xs tracking-[0.2em] text-muted uppercase">
+          {tx ? "Last decision" : "At every tap"}
+        </p>
+        {tx ? (
+          <p className="text-sm text-muted">
+            {tx.merchant_name} · {money(tx.amount)}
+          </p>
+        ) : (
+          <p className="text-sm text-muted">
+            One virtual card becomes the best rewards card
+          </p>
+        )}
+      </div>
+
+      <ol className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {steps.map((step, index) => (
+          <li key={step.key} className="min-w-0">
+            <p className="text-[10px] tracking-[0.2em] text-accent uppercase">
+              {String(index + 1).padStart(2, "0")} {step.label}
+            </p>
+            <p className="mt-1.5 truncate font-[family-name:var(--font-display)] text-base text-foreground">
+              {step.detail}
+            </p>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+function ActivityPanel({
+  txs,
+  total,
+  flashIds,
+  showAll,
+  onToggleAll,
+  previewLimit,
+}: {
+  txs: Transaction[];
+  total: number;
+  flashIds: Set<string>;
+  showAll: boolean;
+  onToggleAll: () => void;
+  previewLimit: number;
+}) {
+  if (total === 0) return <EmptyHistoryCta />;
+
+  return (
+    <div>
+      <ul className="space-y-1">
+        {txs.map((tx) => (
+          <li
+            key={tx.id}
+            className={`border-b border-line px-2 py-3 last:border-0 ${
+              flashIds.has(tx.id) ? "animate-flash-row" : ""
+            }`}
+          >
+            <div className="flex items-baseline justify-between gap-4">
+              <div className="min-w-0">
+                <p className="truncate font-medium">{tx.merchant_name}</p>
+                <p className="mt-1 truncate text-sm text-muted">
+                  {tx.selected_card_name}
+                  {tx.category_source === "override" ? (
+                    <span className="text-accent"> · override</span>
+                  ) : null}
+                  {tx.cap_key ? (
+                    <span className="text-accent"> · cap {tx.cap_key}</span>
+                  ) : null}
+                </p>
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-sm">{money(tx.amount)}</p>
+                <p className="mt-0.5 text-sm text-accent">
+                  +{money(tx.extra_value)}
+                </p>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {total > previewLimit ? (
+        <button
+          type="button"
+          onClick={onToggleAll}
+          className="mt-4 text-sm text-accent transition hover:brightness-110"
+        >
+          {showAll ? "Show less" : `View all ${total} routes`}
+        </button>
+      ) : null}
     </div>
   );
 }
 
-function DecideStep({
-  n,
-  title,
-  body,
+function CardsPanel({
+  cards,
+  error,
 }: {
-  n: string;
-  title: string;
-  body: string;
+  cards: Card[];
+  error: string | null;
 }) {
+  if (!error && cards.length === 0) {
+    return <StartupHints kind="empty-cards" />;
+  }
+
   return (
-    <li className="border-t border-line pt-4">
-      <p className="text-xs tracking-[0.2em] text-accent uppercase">{n}</p>
-      <p className="mt-3 font-[family-name:var(--font-display)] text-xl">
-        {title}
-      </p>
-      <p className="mt-2 text-sm leading-relaxed text-muted">{body}</p>
-    </li>
+    <ul className="space-y-4">
+      {cards.map((card) => (
+        <li key={card.id} className="border-b border-line pb-4 last:border-0">
+          <div className="flex items-baseline justify-between gap-4">
+            <div>
+              <p className="font-medium">
+                {card.name}
+                {card.is_default ? (
+                  <span className="ml-2 text-xs text-muted">default</span>
+                ) : null}
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                {card.issuer} ···· {card.last4}
+              </p>
+            </div>
+            <p className="text-right text-sm text-accent">{card.highlight}</p>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
+function EmptyHistoryCta() {
+  return (
+    <div className="border border-line/80 bg-background/40 px-5 py-6 text-left">
+      <p className="font-[family-name:var(--font-display)] text-xl">
+        No routed purchases yet
+      </p>
+      <p className="mt-2 max-w-sm text-sm text-muted">
+        Simulate a merchant tap. This feed updates live when a decision lands.
+      </p>
+      <Link
+        href="/terminal"
+        className="mt-5 inline-flex rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink transition hover:brightness-110"
+      >
+        Open tap terminal
+      </Link>
+    </div>
+  );
+}

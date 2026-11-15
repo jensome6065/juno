@@ -1,4 +1,4 @@
-"""Demo helpers — wipe state and run the pitch script."""
+"""Demo helpers - wipe state and run the pitch script."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ router = APIRouter(prefix="/demo", tags=["demo"])
 
 # Fixed auth ids so re-running the script is idempotent within a session
 # after reset, and curl docs stay copy-pasteable.
-# Varied feed for the dashboard — not six identical coffees.
+# Varied feed for the dashboard - not six identical coffees.
 SCRIPT_BEATS: list[dict] = [
     {
         "name": "starbucks",
@@ -110,7 +110,7 @@ def reset_demo() -> ResetResponse:
     try:
         if walletwallet.configured() and walletwallet.update_pass():
             wallet_updated = True
-    except Exception:  # noqa: BLE001 — reset still succeeds if WalletWallet is down
+    except Exception:  # noqa: BLE001 - reset still succeeds if WalletWallet is down
         wallet_updated = False
 
     publish("demo.reset", {})

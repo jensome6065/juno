@@ -196,7 +196,7 @@ class ScorePurchasesTest(unittest.TestCase):
         mcc_map = load_mcc_map()
         for merchant in self.merchants.values():
             if merchant["id"] == "starbucks_whole_foods":
-                # Intentionally mismatched MCC — resolved by merchant_overrides.
+                # Intentionally mismatched MCC - resolved by merchant_overrides.
                 self.assertEqual(mcc_map[merchant["mcc"]], "groceries")
                 self.assertEqual(merchant["category"], "dining")
                 continue

@@ -47,7 +47,7 @@ def _widen_pass_url_columns(engine: Engine) -> None:
         for statement in statements:
             try:
                 conn.execute(text(statement))
-            except Exception:  # noqa: BLE001 — table may not exist yet / already Text
+            except Exception:  # noqa: BLE001 - table may not exist yet / already Text
                 pass
 
 

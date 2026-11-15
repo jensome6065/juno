@@ -1,4 +1,4 @@
-"""Cap status for UI meters — no scoring side effects."""
+"""Cap status for UI meters - no scoring side effects."""
 
 from __future__ import annotations
 

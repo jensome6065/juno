@@ -51,7 +51,7 @@ const COPY: Record<
     steps: [
       "Open the tap terminal",
       "Pick a merchant (try Starbucks at Whole Foods for an override)",
-      "Hold phone to reader — this list updates live over SSE",
+      "Hold phone to reader. This list updates live over SSE",
     ],
   },
   "empty-cards": {

@@ -12,8 +12,8 @@ def pick_best_card(
     cards: list[dict[str, Any]],
     amount: float,
     mcc: str,
-    category: str,  # noqa: ARG001 — merchant intel / MCC decide category
-    spend_by_card: dict[str, float] | None = None,  # noqa: ARG001 — legacy
+    category: str,  # noqa: ARG001 - merchant intel / MCC decide category
+    spend_by_card: dict[str, float] | None = None,  # noqa: ARG001 - legacy
     caps: dict[str, dict[str, int]] | None = None,
     today: Optional[date] = None,
     merchant_name: str = "",

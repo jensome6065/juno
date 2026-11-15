@@ -1,4 +1,4 @@
-"""Stripe Issuing authorization webhook — signature verified, idempotent."""
+"""Stripe Issuing authorization webhook - signature verified, idempotent."""
 
 from __future__ import annotations
 
@@ -116,7 +116,7 @@ def _approve_authorization(authorization_id: str) -> bool:
     try:
         Authorization.approve(authorization_id)
         return True
-    except Exception:  # noqa: BLE001 — still record local decision for demo/logs
+    except Exception:  # noqa: BLE001 - still record local decision for demo/logs
         return False
 
 

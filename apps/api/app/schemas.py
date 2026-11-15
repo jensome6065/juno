@@ -53,7 +53,7 @@ class SimulateRequest(BaseModel):
     amount: Optional[float] = Field(default=None, gt=0)
     # When > 0, rank by reward minus APR carry cost (demo: Reflect 0% promo).
     carry_months: float = Field(default=0.0, ge=0, le=36)
-    # Stripe (or demo) authorization id — UNIQUE in the data plane for idempotency.
+    # Stripe (or demo) authorization id - UNIQUE in the data plane for idempotency.
     authorization_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
 
     @model_validator(mode="after")

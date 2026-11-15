@@ -7,7 +7,7 @@ export function SiteNav({
   active,
   live,
 }: {
-  active: "dashboard" | "terminal";
+  active: "dashboard" | "terminal" | "lab";
   live?: LiveState;
 }) {
   return (
@@ -32,14 +32,6 @@ export function SiteNav({
         >
           Dashboard
         </Link>
-        {active === "dashboard" ? (
-          <a
-            href="#security"
-            className="rounded-full px-4 py-2 text-muted transition hover:text-foreground"
-          >
-            Security
-          </a>
-        ) : null}
         <Link
           href="/terminal"
           className={`rounded-full px-4 py-2 transition ${
@@ -49,6 +41,17 @@ export function SiteNav({
           }`}
         >
           Terminal
+        </Link>
+        <Link
+          href="/lab"
+          className={`rounded-full px-4 py-2 transition ${
+            active === "lab"
+              ? "bg-accent text-accent-ink"
+              : "text-muted/70 hover:text-muted"
+          }`}
+          title="Pitch seed & security proof"
+        >
+          Lab
         </Link>
       </div>
     </nav>

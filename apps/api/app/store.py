@@ -283,7 +283,7 @@ def configure_test_db(url: str = "sqlite+pysqlite:///:memory:") -> None:
 
     try:
         get_engine().dispose()
-    except Exception:  # noqa: BLE001 — engine may not exist yet
+    except Exception:  # noqa: BLE001 - engine may not exist yet
         pass
     os.environ["DATABASE_URL"] = url
     reset_engine()

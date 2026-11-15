@@ -1,5 +1,5 @@
 /**
- * Plays the demo Apple Pay–style tap confirmation.
+ * Plays the demo Apple Pay-style tap confirmation.
  * Uses /sounds/apple-pay-tap.wav (synthesized stand-in, not Apple's asset).
  */
 
@@ -29,7 +29,7 @@ export async function unlockNfcAudio(): Promise<void> {
     el.currentTime = 0;
     el.muted = false;
   } catch {
-    // Autoplay policy — delayed play may still work after this gesture.
+    // Autoplay policy: delayed play may still work after this gesture.
     el.muted = false;
   }
 }

@@ -1,6 +1,21 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 type LiveState = "connecting" | "live" | "offline";
 
 export function LiveBadge({ state }: { state: LiveState }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return (
+      <span className="rounded-full border border-line px-2.5 py-0.5 text-xs tracking-wide text-muted">
+        Connecting
+      </span>
+    );
+  }
+
   const label =
     state === "live" ? "Live" : state === "connecting" ? "Connecting" : "Offline";
   const color =

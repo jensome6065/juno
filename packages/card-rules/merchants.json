@@ -47,7 +47,7 @@
     "category": "dining",
     "mcc": "5411",
     "amount_cents": 650,
-    "note": "Coffee counter; MCC looks like grocery — override to dining"
+    "note": "Coffee counter; MCC looks like grocery - override to dining"
   },
   {
     "id": "shell",

@@ -17,7 +17,7 @@ router = APIRouter(tags=["simulate"])
 
 @router.get("/merchants", response_model=list[MerchantOut])
 def list_merchants() -> list[MerchantOut]:
-    """Demo shortcuts only — not an exhaustive merchant catalog."""
+    """Demo shortcuts only - not an exhaustive merchant catalog."""
     return [
         MerchantOut(
             id=m["id"],
@@ -61,7 +61,7 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         mcc = str(merchant["mcc"])
         amount = body.amount if body.amount is not None else merchant_typical_amount(merchant)
     else:
-        # Free-text path: never trust a client category — DE infers from name + MCC.
+        # Free-text path: never trust a client category - DE infers from name + MCC.
         merchant_name = (body.merchant_name or "").strip()
         mcc = str(body.mcc or "").strip()
         if not merchant_name or not mcc:
@@ -88,7 +88,7 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
     try:
         if walletwallet.update_pass():
             wallet_updated = True
-    except Exception:  # noqa: BLE001 — demo should still succeed if WalletWallet is down
+    except Exception:  # noqa: BLE001 - demo should still succeed if WalletWallet is down
         wallet_updated = False
 
     return SimulateResponse(
