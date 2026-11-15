@@ -13,6 +13,7 @@ _spend_by_card: dict[str, float] = {}
 _cap_ledger: dict[str, int] = {}
 _transactions: list[dict[str, Any]] = []
 _tx_id = 0
+_pass_state: dict[str, Any] = {}
 
 
 def get_spend() -> dict[str, float]:
@@ -30,6 +31,18 @@ def get_caps(cards: list[dict[str, Any]], today: Optional[date] = None) -> dict[
     """Current-period bonus spend, shaped for `select_card` / `choose_card`."""
     with _lock:
         return caps_for_scoring(cards, _cap_ledger, today=today)
+
+
+def get_pass_state() -> dict[str, Any]:
+    with _lock:
+        return dict(_pass_state)
+
+
+def set_pass_state(state: dict[str, Any]) -> dict[str, Any]:
+    with _lock:
+        _pass_state.clear()
+        _pass_state.update(state)
+        return dict(_pass_state)
 
 
 def add_transaction(
@@ -50,7 +63,6 @@ def add_transaction(
         if card_id:
             _spend_by_card[card_id] = _spend_by_card.get(card_id, 0.0) + amount
 
-        cap_update = None
         if card is not None:
             cap_update = apply_purchase(
                 _cap_ledger,
@@ -79,4 +91,5 @@ def reset() -> None:
         _spend_by_card.clear()
         _cap_ledger.clear()
         _transactions.clear()
+        _pass_state.clear()
         _tx_id = 0

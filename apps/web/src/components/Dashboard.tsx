@@ -1,21 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { api, type Card, type Transaction } from "@/lib/api";
+import { useEffect, useState, useTransition } from "react";
+import {
+  api,
+  type Card,
+  type Transaction,
+  type WalletStatus,
+} from "@/lib/api";
 import { money } from "@/lib/format";
 import { SiteNav } from "@/components/SiteNav";
 
 export function Dashboard() {
   const [cards, setCards] = useState<Card[]>([]);
   const [txs, setTxs] = useState<Transaction[]>([]);
+  const [wallet, setWallet] = useState<WalletStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [walletError, setWalletError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   useEffect(() => {
-    Promise.all([api.cards(), api.transactions()])
-      .then(([c, t]) => {
+    Promise.all([api.cards(), api.transactions(), api.walletStatus()])
+      .then(([c, t, w]) => {
         setCards(c);
         setTxs(t);
+        setWallet(w);
       })
       .catch((e: Error) => setError(e.message));
   }, []);
@@ -23,6 +32,26 @@ export function Dashboard() {
   const extraTotal = txs.reduce((sum, tx) => sum + tx.extra_value, 0);
   const spendTotal = txs.reduce((sum, tx) => sum + tx.amount, 0);
   const last = txs[0] ?? null;
+
+  function addToWallet() {
+    setWalletError(null);
+    startTransition(async () => {
+      try {
+        const pass = await api.createWalletPass();
+        setWallet({
+          configured: true,
+          serial_number: pass.serial_number,
+          share_url: pass.share_url,
+          google_save_url: pass.google_save_url,
+        });
+        if (pass.share_url) {
+          window.open(pass.share_url, "_blank", "noopener,noreferrer");
+        }
+      } catch (e) {
+        setWalletError(e instanceof Error ? e.message : "Could not create pass");
+      }
+    });
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -39,17 +68,52 @@ export function Dashboard() {
               <span className="block text-muted">wallet dashboard</span>
             </h1>
             <p className="max-w-md text-base leading-relaxed text-muted">
-              Link cards here, watch every routed purchase, and open the
-              merchant terminal to simulate a phone tap.
+              Add Juno to Apple Wallet, then use the terminal to simulate a tap.
+              After each route, the Wallet pass updates with which card won.
             </p>
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/terminal"
-                className="animate-pulse-ring rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink transition hover:brightness-110"
+                className="rounded-full bg-accent px-5 py-3 text-sm font-semibold text-accent-ink transition hover:brightness-110"
               >
                 Open tap terminal
               </Link>
+              {wallet?.share_url ? (
+                <a
+                  href={wallet.share_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="animate-pulse-ring rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10"
+                >
+                  Open Apple Wallet pass
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled={pending || wallet?.configured === false}
+                  onClick={addToWallet}
+                  className="animate-pulse-ring rounded-full border border-accent px-5 py-3 text-sm text-accent transition hover:bg-accent/10 disabled:opacity-50"
+                >
+                  {pending ? "Creating pass…" : "Add to Apple Wallet"}
+                </button>
+              )}
             </div>
+            {wallet && !wallet.configured ? (
+              <p className="text-sm text-warn">
+                Set <code className="text-foreground">WALLETWALLET_API_KEY</code>{" "}
+                in <code className="text-foreground">.env</code> from{" "}
+                <a
+                  className="underline"
+                  href="https://www.walletwallet.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  walletwallet.dev
+                </a>
+                , then restart the API.
+              </p>
+            ) : null}
+            {walletError ? <p className="text-sm text-warn">{walletError}</p> : null}
             {error ? (
               <p className="text-sm text-warn">
                 API error — is uvicorn running on :8000? {error}
@@ -65,7 +129,7 @@ export function Dashboard() {
                   JUNO
                 </span>
                 <span className="rounded-full border border-line px-3 py-1 text-xs text-muted">
-                  virtual card
+                  {wallet?.serial_number ? "in wallet" : "virtual card"}
                 </span>
               </div>
               <div>

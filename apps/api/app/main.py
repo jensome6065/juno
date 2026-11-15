@@ -1,9 +1,15 @@
 import os
+from pathlib import Path
 
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import cards, simulate, transactions
+from app.routers import cards, simulate, transactions, wallet
+
+ROOT = Path(__file__).resolve().parents[3]
+load_dotenv(ROOT / ".env")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 app = FastAPI(title="Juno API", version="0.1.0")
 
@@ -24,6 +30,7 @@ app.add_middleware(
 app.include_router(cards.router)
 app.include_router(transactions.router)
 app.include_router(simulate.router)
+app.include_router(wallet.router)
 
 
 @app.get("/health")

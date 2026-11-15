@@ -60,6 +60,21 @@ export type SimulateResponse = {
     rate_used: number;
     reason: string;
   }>;
+  wallet_updated?: boolean;
+};
+
+export type WalletStatus = {
+  configured: boolean;
+  serial_number: string | null;
+  share_url: string | null;
+  google_save_url: string | null;
+};
+
+export type WalletPass = {
+  serial_number: string;
+  share_url: string | null;
+  google_save_url: string | null;
+  apple_pass: string | null;
 };
 
 export const api = {
@@ -70,5 +85,10 @@ export const api = {
     request<SimulateResponse>("/simulate", {
       method: "POST",
       body: JSON.stringify({ merchant_id, amount }),
+    }),
+  walletStatus: () => request<WalletStatus>("/wallet/status"),
+  createWalletPass: () =>
+    request<WalletPass>("/wallet/pass", {
+      method: "POST",
     }),
 };

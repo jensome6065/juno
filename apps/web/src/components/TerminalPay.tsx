@@ -122,6 +122,11 @@ export function TerminalPay() {
                   +{money(result.transaction.extra_value)} vs{" "}
                   {result.transaction.default_card_name}
                 </p>
+                {result.wallet_updated ? (
+                  <p className="text-sm text-muted">
+                    Apple Wallet pass updated with this route.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 

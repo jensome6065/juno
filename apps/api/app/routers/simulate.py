@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.engine.router import pick_best_card
 from app.schemas import MerchantOut, RouteScore, SimulateRequest, SimulateResponse, TransactionOut
+from app.services import walletwallet
 from app.services.rules import get_card, get_merchant, load_cards, load_merchants, merchant_typical_amount
 from app.store import add_transaction, get_caps
 
@@ -62,7 +63,15 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         card=chosen,
     )
 
+    wallet_updated = False
+    try:
+        if walletwallet.update_pass():
+            wallet_updated = True
+    except Exception:  # noqa: BLE001 — demo should still succeed if WalletWallet is down
+        wallet_updated = False
+
     return SimulateResponse(
         transaction=TransactionOut(**tx),
         scores=[RouteScore(**s) for s in scores],
+        wallet_updated=wallet_updated,
     )

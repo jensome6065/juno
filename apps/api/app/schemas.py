@@ -54,3 +54,19 @@ class RouteScore(BaseModel):
 class SimulateResponse(BaseModel):
     transaction: TransactionOut
     scores: list[RouteScore]
+    wallet_updated: bool = False
+
+
+class WalletStatusOut(BaseModel):
+    configured: bool
+    serial_number: Optional[str] = None
+    share_url: Optional[str] = None
+    google_save_url: Optional[str] = None
+
+
+class WalletPassOut(BaseModel):
+    serial_number: str
+    share_url: Optional[str] = None
+    google_save_url: Optional[str] = None
+    apple_pass: Optional[str] = None
+
