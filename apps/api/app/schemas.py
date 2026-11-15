@@ -61,6 +61,9 @@ class SimulateResponse(BaseModel):
     scores: list[RouteScore]
     wallet_updated: bool = False
     latency_ms: float = 0.0
+    signature_verified: bool = False
+    authorization_id: Optional[str] = None
+    idempotent_replay: bool = False
 
 
 class WalletStatusOut(BaseModel):

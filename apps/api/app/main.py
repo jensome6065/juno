@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import init_db
-from app.routers import cards, events, simulate, transactions, wallet
+from app.routers import cards, events, simulate, transactions, wallet, webhooks
 
 ROOT = Path(__file__).resolve().parents[3]
 load_dotenv(ROOT / ".env")
@@ -39,6 +39,7 @@ app.include_router(transactions.router)
 app.include_router(simulate.router)
 app.include_router(wallet.router)
 app.include_router(events.router)
+app.include_router(webhooks.router)
 
 
 @app.get("/health")

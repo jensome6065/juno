@@ -1,13 +1,9 @@
-import time
-
 from fastapi import APIRouter, HTTPException
 
-from app.engine.router import pick_best_card
-from app.events import publish
-from app.schemas import MerchantOut, RouteScore, SimulateRequest, SimulateResponse, TransactionOut
+from app.schemas import MerchantOut, SimulateRequest, SimulateResponse
 from app.services import walletwallet
-from app.services.rules import get_card, get_merchant, load_cards, load_merchants, merchant_typical_amount
-from app.store import add_transaction, get_caps
+from app.services.decisions import DecisionError, route_purchase
+from app.services.rules import get_merchant, load_merchants, merchant_typical_amount
 
 router = APIRouter(tags=["simulate"])
 
@@ -32,57 +28,19 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
     if not merchant:
         raise HTTPException(status_code=404, detail="merchant not found")
 
-    cards = [c for c in load_cards() if c.get("in_wallet", True)]
-    if not cards:
-        raise HTTPException(status_code=400, detail="no cards configured")
-
     amount = body.amount if body.amount is not None else merchant_typical_amount(merchant)
-
-    # Time the authorization-critical path only (score + persist), not WalletWallet I/O.
-    started = time.perf_counter()
-    best, scores, default = pick_best_card(
-        cards,
-        amount,
-        merchant["mcc"],
-        merchant["category"],
-        caps=get_caps(cards),
-        merchant_name=merchant["name"],
-    )
-
-    # Category may come from MCC or a merchant_overrides hit (coffee-in-grocery).
-    category = best.get("category") or merchant["category"]
-    chosen = get_card(best["card_id"])
-    tx = add_transaction(
-        {
-            "authorization_id": body.authorization_id,
-            "merchant_name": merchant["name"],
-            "merchant_id": merchant["id"],
-            "mcc": merchant["mcc"],
-            "category": category,
-            "category_confidence": best.get("category_confidence"),
-            "category_source": best.get("category_source"),
-            "amount": amount,
-            "selected_card_id": best["card_id"],
-            "selected_card_name": best["card_name"],
-            "default_card_name": default["card_name"],
-            "reward_value": best["value"],
-            "default_reward_value": default["value"],
-            "extra_value": round(best["value"] - default["value"], 4),
-            "reason": best["reason"],
-        },
-        card=chosen,
-    )
-    latency_ms = round((time.perf_counter() - started) * 1000, 2)
-    transaction = TransactionOut(**tx)
-
-    publish(
-        "decision.created",
-        {
-            "transaction": transaction.model_dump(),
-            "scores": scores,
-            "latency_ms": latency_ms,
-        },
-    )
+    try:
+        decision = route_purchase(
+            amount=amount,
+            mcc=str(merchant["mcc"]),
+            merchant_name=merchant["name"],
+            merchant_id=merchant["id"],
+            category_hint=merchant.get("category"),
+            authorization_id=body.authorization_id,
+            source="simulate",
+        )
+    except DecisionError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     wallet_updated = False
     try:
@@ -92,8 +50,11 @@ def simulate(body: SimulateRequest) -> SimulateResponse:
         wallet_updated = False
 
     return SimulateResponse(
-        transaction=transaction,
-        scores=[RouteScore(**s) for s in scores],
+        transaction=decision["transaction"],
+        scores=decision["scores"],
         wallet_updated=wallet_updated,
-        latency_ms=latency_ms,
+        latency_ms=decision["latency_ms"],
+        signature_verified=decision.get("signature_verified", False),
+        authorization_id=decision.get("authorization_id"),
+        idempotent_replay=decision.get("idempotent_replay", False),
     )

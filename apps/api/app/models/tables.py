@@ -9,6 +9,7 @@ Security invariants:
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from typing import Optional
 
 from sqlalchemy import (
     DateTime,
@@ -34,20 +35,20 @@ class TransactionRow(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     # Idempotency key for Stripe (or simulator) authorizations.
-    authorization_id: Mapped[str | None] = mapped_column(String(128), unique=True, index=True)
+    authorization_id: Mapped[Optional[str]] = mapped_column(String(128), unique=True, index=True)
 
     merchant_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    merchant_id: Mapped[str | None] = mapped_column(String(64))
+    merchant_id: Mapped[Optional[str]] = mapped_column(String(64))
     mcc: Mapped[str] = mapped_column(String(8), nullable=False)
     category: Mapped[str] = mapped_column(String(64), nullable=False)
-    category_confidence: Mapped[float | None] = mapped_column(Float)
-    category_source: Mapped[str | None] = mapped_column(String(32))
+    category_confidence: Mapped[Optional[float]] = mapped_column(Float)
+    category_source: Mapped[Optional[str]] = mapped_column(String(32))
 
     amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
 
     selected_card_id: Mapped[str] = mapped_column(String(64), nullable=False)
     selected_card_name: Mapped[str] = mapped_column(String(128), nullable=False)
-    selected_last4: Mapped[str | None] = mapped_column(String(4))
+    selected_last4: Mapped[Optional[str]] = mapped_column(String(4))
     default_card_name: Mapped[str] = mapped_column(String(128), nullable=False)
 
     reward_value_cents: Mapped[float] = mapped_column(Float, nullable=False)
@@ -55,10 +56,10 @@ class TransactionRow(Base):
     extra_value_cents: Mapped[float] = mapped_column(Float, nullable=False)
     reason: Mapped[str] = mapped_column(Text, nullable=False)
 
-    cap_key: Mapped[str | None] = mapped_column(String(64))
-    cap_credited_cents: Mapped[int | None] = mapped_column(Integer)
-    cap_period_id: Mapped[str | None] = mapped_column(String(32))
-    cap_remaining_cents: Mapped[int | None] = mapped_column(Integer)
+    cap_key: Mapped[Optional[str]] = mapped_column(String(64))
+    cap_credited_cents: Mapped[Optional[int]] = mapped_column(Integer)
+    cap_period_id: Mapped[Optional[str]] = mapped_column(String(32))
+    cap_remaining_cents: Mapped[Optional[int]] = mapped_column(Integer)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
 
@@ -74,15 +75,19 @@ class CapLedgerRow(Base):
     cap_key: Mapped[str] = mapped_column(String(64), nullable=False)
     period_id: Mapped[str] = mapped_column(String(32), nullable=False)
     spent_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
 
 
 class PassStateRow(Base):
     __tablename__ = "pass_state"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    serial_number: Mapped[str | None] = mapped_column(String(128))
-    share_url: Mapped[str | None] = mapped_column(String(512))
-    google_save_url: Mapped[str | None] = mapped_column(String(512))
-    apple_pass_path: Mapped[str | None] = mapped_column(String(512))
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+    serial_number: Mapped[Optional[str]] = mapped_column(String(128))
+    share_url: Mapped[Optional[str]] = mapped_column(String(512))
+    google_save_url: Mapped[Optional[str]] = mapped_column(String(512))
+    apple_pass_path: Mapped[Optional[str]] = mapped_column(String(512))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
+    )
