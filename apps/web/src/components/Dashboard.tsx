@@ -13,6 +13,10 @@ import { money } from "@/lib/format";
 import { SavingsCompare } from "@/components/SavingsCompare";
 import { SecurityPanel } from "@/components/SecurityPanel";
 import { SiteNav } from "@/components/SiteNav";
+import {
+  StartupHints,
+  classifyApiError,
+} from "@/components/StartupHints";
 import { WalletStatus } from "@/components/WalletStatus";
 
 export function Dashboard() {
@@ -170,9 +174,10 @@ export function Dashboard() {
               onAdd={addToWallet}
             />
             {error ? (
-              <p className="text-sm text-warn">
-                API error — is uvicorn running on :8000? {error}
-              </p>
+              <StartupHints kind={classifyApiError(error)} detail={error} />
+            ) : null}
+            {!error && live === "offline" ? (
+              <StartupHints kind="live-offline" />
             ) : null}
           </div>
 
@@ -239,31 +244,37 @@ export function Dashboard() {
               Juno picks among these at authorization time.
             </p>
             <ul className="mt-6 space-y-4">
-              {cards.map((card) => (
-                <li
-                  key={card.id}
-                  className="border-b border-line pb-4 last:border-0"
-                >
-                  <div className="flex items-baseline justify-between gap-4">
-                    <div>
-                      <p className="font-medium">
-                        {card.name}
-                        {card.is_default ? (
-                          <span className="ml-2 text-xs text-muted">
-                            default
-                          </span>
-                        ) : null}
-                      </p>
-                      <p className="mt-1 text-sm text-muted">
-                        {card.issuer} ···· {card.last4}
+              {!error && cards.length === 0 ? (
+                <li>
+                  <StartupHints kind="empty-cards" />
+                </li>
+              ) : (
+                cards.map((card) => (
+                  <li
+                    key={card.id}
+                    className="border-b border-line pb-4 last:border-0"
+                  >
+                    <div className="flex items-baseline justify-between gap-4">
+                      <div>
+                        <p className="font-medium">
+                          {card.name}
+                          {card.is_default ? (
+                            <span className="ml-2 text-xs text-muted">
+                              default
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="mt-1 text-sm text-muted">
+                          {card.issuer} ···· {card.last4}
+                        </p>
+                      </div>
+                      <p className="text-right text-sm text-accent">
+                        {card.highlight}
                       </p>
                     </div>
-                    <p className="text-right text-sm text-accent">
-                      {card.highlight}
-                    </p>
-                  </div>
-                </li>
-              ))}
+                  </li>
+                ))
+              )}
             </ul>
           </div>
 
@@ -289,8 +300,8 @@ export function Dashboard() {
             </div>
             <ul className="mt-6 space-y-4">
               {txs.length === 0 ? (
-                <li className="text-sm text-muted">
-                  No transactions yet — open the terminal and tap.
+                <li>
+                  <StartupHints kind="empty-history" />
                 </li>
               ) : (
                 txs.map((tx) => (

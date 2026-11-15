@@ -82,6 +82,26 @@ export function SecurityPanel({ live }: { live: "connecting" | "live" | "offline
         />
       </div>
 
+      {status && !status.stripe_webhook_secret_configured ? (
+        <div className="mt-6 border border-line/80 px-4 py-4 text-sm text-muted">
+          <p className="font-medium text-warn">Webhook secret not loaded</p>
+          <ol className="mt-3 list-decimal space-y-1.5 pl-4">
+            <li>
+              <code className="text-foreground">
+                stripe listen --events issuing_authorization.request
+                --forward-to localhost:8000/webhooks/stripe
+              </code>
+            </li>
+            <li>
+              Put the printed <code className="text-foreground">whsec_…</code>{" "}
+              in <code className="text-foreground">.env</code> as{" "}
+              <code className="text-foreground">STRIPE_WEBHOOK_SECRET</code>
+            </li>
+            <li>Restart uvicorn, then refresh this page</li>
+          </ol>
+        </div>
+      ) : null}
+
       <div className="mt-8 flex flex-wrap items-center gap-3">
         <button
           type="button"

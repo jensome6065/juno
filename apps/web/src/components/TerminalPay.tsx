@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { SavingsCompare } from "@/components/SavingsCompare";
+import {
+  StartupHints,
+  classifyApiError,
+} from "@/components/StartupHints";
 import { api, type Merchant, type SimulateResponse } from "@/lib/api";
 import { money } from "@/lib/format";
 
@@ -171,7 +175,10 @@ export function TerminalPay() {
             ) : null}
 
             {phase === "error" && error ? (
-              <p className="text-sm text-warn">{error}</p>
+              <StartupHints kind={classifyApiError(error)} detail={error} />
+            ) : null}
+            {phase !== "error" && merchants.length === 0 ? (
+              <StartupHints kind="no-merchants" />
             ) : null}
 
             <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
