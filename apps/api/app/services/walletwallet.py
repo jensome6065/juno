@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import os
 import re
+from pathlib import Path
 from typing import Any
 
 import httpx
+from dotenv import dotenv_values
 
 from app.store import get_pass_state, list_transactions, set_pass_state
 
@@ -14,16 +16,36 @@ BASE_URL = "https://api.walletwallet.dev"
 _PASS_ID_RE = re.compile(r"/p/([0-9a-fA-F-]{36})")
 
 
+def _root_env_path() -> Path:
+    """Walk up from this file to the repo-root .env (not apps/ or apps/api/)."""
+    here = Path(__file__).resolve().parent
+    for directory in (here, *here.parents):
+        candidate = directory / ".env"
+        if candidate.is_file():
+            return candidate
+    return Path.cwd() / ".env"
+
+
 def configured() -> bool:
-    return bool(os.getenv("WALLETWALLET_API_KEY", "").strip())
+    return bool(_wallet_env("WALLETWALLET_API_KEY"))
+
+
+def _wallet_env(name: str) -> str:
+    """Prefer repo .env over process env so link edits apply without a full shell re-source."""
+    env_path = _root_env_path()
+    if env_path.is_file():
+        file_vals = dotenv_values(env_path)
+        if name in file_vals and file_vals[name] is not None:
+            return str(file_vals[name]).strip()
+    return os.getenv(name, "").strip()
 
 
 def _env_apple_url() -> str:
-    return os.getenv("WALLETWALLET_APPLE_PASS_URL", "").strip()
+    return _wallet_env("WALLETWALLET_APPLE_PASS_URL")
 
 
 def _env_google_url() -> str:
-    return os.getenv("WALLETWALLET_GOOGLE_PASS_URL", "").strip()
+    return _wallet_env("WALLETWALLET_GOOGLE_PASS_URL")
 
 
 def _serial_from_url(url: str) -> str | None:
@@ -32,7 +54,11 @@ def _serial_from_url(url: str) -> str | None:
 
 
 def ensure_pass_links() -> dict[str, Any]:
-    """Seed Apple/Google share links from env when the DB row is empty or stale."""
+    """Seed Apple/Google share links from env when the DB row is empty or stale.
+
+    Fixed env URLs win over whatever serial/share_url is already in the DB — otherwise
+    an old serial survives a .env update and every update_pass() writes the old link back.
+    """
     state = get_pass_state()
     apple = _env_apple_url()
     google = _env_google_url()
@@ -40,9 +66,9 @@ def ensure_pass_links() -> dict[str, Any]:
         return state
 
     serial = (
-        state.get("serial_number")
-        or _serial_from_url(apple)
+        _serial_from_url(apple)
         or _serial_from_url(google)
+        or state.get("serial_number")
     )
     next_state = {
         "serial_number": serial,
@@ -60,7 +86,7 @@ def ensure_pass_links() -> dict[str, Any]:
 
 
 def _headers() -> dict[str, str]:
-    key = os.getenv("WALLETWALLET_API_KEY", "").strip()
+    key = _wallet_env("WALLETWALLET_API_KEY")
     if not key:
         raise RuntimeError("WALLETWALLET_API_KEY is not set")
     return {
@@ -128,6 +154,25 @@ def build_pass_body() -> dict[str, Any]:
 
 
 def create_pass() -> dict[str, Any]:
+    """Create a WalletWallet pass, or refresh the fixed env-linked pass if configured.
+
+    When WALLETWALLET_*_PASS_URL is set, minting a new pass is pointless — ensure_pass_links
+    would immediately overwrite the new share URL with the env link. Sync that pass instead.
+    """
+    apple = _env_apple_url()
+    google = _env_google_url()
+    if apple or google:
+        ensure_pass_links()
+        updated = update_pass()
+        state = get_pass_state()
+        if updated or state.get("share_url") or state.get("google_save_url"):
+            return {
+                "serial_number": state.get("serial_number"),
+                "share_url": state.get("share_url"),
+                "google_save_url": state.get("google_save_url"),
+                "apple_pass": None,
+            }
+
     with httpx.Client(timeout=30.0) as client:
         res = client.post(
             f"{BASE_URL}/api/passes",
@@ -138,16 +183,11 @@ def create_pass() -> dict[str, Any]:
             raise RuntimeError(f"WalletWallet create failed ({res.status_code}): {res.text}")
         data = res.json()
 
-    apple = _env_apple_url()
-    google = _env_google_url()
     set_pass_state(
         {
-            "serial_number": (
-                _serial_from_url(apple)
-                or data.get("serialNumber")
-            ),
-            "share_url": apple or data.get("shareUrl"),
-            "google_save_url": google or data.get("googleSaveUrl"),
+            "serial_number": data.get("serialNumber"),
+            "share_url": data.get("shareUrl"),
+            "google_save_url": data.get("googleSaveUrl"),
         }
     )
     state = ensure_pass_links()
@@ -161,7 +201,13 @@ def create_pass() -> dict[str, Any]:
 
 def update_pass() -> dict[str, Any] | None:
     state = ensure_pass_links()
-    serial = state.get("serial_number")
+    apple = _env_apple_url()
+    google = _env_google_url()
+    serial = (
+        _serial_from_url(apple)
+        or state.get("serial_number")
+        or _serial_from_url(google)
+    )
     if not serial or not configured():
         return None
 
@@ -175,11 +221,11 @@ def update_pass() -> dict[str, Any] | None:
             raise RuntimeError(f"WalletWallet update failed ({res.status_code}): {res.text}")
         data = res.json()
 
-    apple = _env_apple_url()
-    google = _env_google_url()
+    # Env fixed links always win; never let the API response resurrect a stale share URL.
+    next_serial = _serial_from_url(apple) or data.get("serialNumber") or serial
     set_pass_state(
         {
-            "serial_number": data.get("serialNumber") or serial,
+            "serial_number": next_serial,
             "share_url": apple or data.get("shareUrl") or state.get("share_url"),
             "google_save_url": google
             or data.get("googleSaveUrl")
@@ -187,7 +233,7 @@ def update_pass() -> dict[str, Any] | None:
         }
     )
     return {
-        "serial_number": data.get("serialNumber") or serial,
+        "serial_number": next_serial,
         "share_url": apple or data.get("shareUrl") or state.get("share_url"),
         "updated": True,
     }
